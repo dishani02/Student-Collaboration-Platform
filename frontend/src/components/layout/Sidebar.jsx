@@ -27,16 +27,50 @@ const Sidebar = () => {
     navigate('/login');
   };
 
-  // Navigation links for all users
+  // Navigation links based on role
   const getNavigationLinks = () => {
-    return [
-      { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-      { to: '/sessions', icon: Calendar, label: 'Sessions' },
-      { to: '/resources', icon: FileText, label: 'Resources' },
-      { to: '/groups', icon: Users, label: 'Groups' },
-    ];
-  };
+    if (!user) return [];
 
+    const baseLinks = {
+      student: [
+        { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+        { to: '/profile', icon: User, label: 'Profile' },
+        { to: '/sessions', icon: Calendar, label: 'Sessions' },
+        { to: '/resources', icon: FileText, label: 'Resources' },
+        { to: '/groups', icon: Users, label: 'Groups' },
+        { to: '/chat', icon: MessageSquare, label: 'Chat' },
+        { to: '/settings', icon: Settings, label: 'Settings' },
+      ],
+      expert: [
+        { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+        { to: '/profile', icon: User, label: 'Profile' },
+        { to: '/sessions', icon: Calendar, label: 'Sessions' },
+        { to: '/resources', icon: FileText, label: 'Resources' },
+        { to: '/groups', icon: Users, label: 'Groups' },
+        { to: '/chat', icon: MessageSquare, label: 'Chat' },
+        { to: '/settings', icon: Settings, label: 'Settings' },
+      ],
+      lecturer: [
+        { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+        { to: '/profile', icon: User, label: 'Profile' },
+        { to: '/groups', icon: Users, label: 'Groups' },
+        { to: '/modules', icon: BookOpen, label: 'Modules' },
+        { to: '/settings', icon: Settings, label: 'Settings' },
+      ],
+      admin: [
+        { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+        { to: '/users', icon: Users, label: 'Users' },
+        { to: '/expert-queue', icon: UserCheck, label: 'Approval Queue' },
+        { to: '/sessions', icon: Calendar, label: 'Sessions' },
+        { to: '/resources', icon: FileText, label: 'Resources' },
+        { to: '/groups', icon: Shield, label: 'Groups' },
+        { to: '/feed', icon: MessageSquare, label: 'Feed' },
+        { to: '/settings', icon: Settings, label: 'Settings' },
+      ],
+    };
+
+    return baseLinks[user.role] || [];
+  };
 
   const navigationLinks = getNavigationLinks();
   const isActive = (path) => location.pathname === path;
