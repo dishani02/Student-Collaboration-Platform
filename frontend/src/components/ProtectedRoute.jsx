@@ -1,6 +1,6 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import Loader from './common/Loader';
+import Loader from '../components/common/Loader';
 
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   const { user, loading } = useAuth();
@@ -25,11 +25,11 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   // Check role-based access
   if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
     console.log('🚫 Unauthorized role - redirecting to dashboard');
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={`/${user.role}/dashboard`} replace />;
   }
 
   // User is authenticated and authorized
   return children ? children : <Outlet />;
 };
 
-export default ProtectedRoute;
+export default ProtectedRoute;
