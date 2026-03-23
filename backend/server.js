@@ -397,6 +397,8 @@ const userRoutes = require('./routes/users');
 const resourceRoutes = require('./routes/resources');
 const moduleRoutes = require('./routes/modules');
 const aiRoutes = require('./routes/ai');
+const sessionRoutes = require('./routes/sessions');
+const sessionRequestRoutes = require('./routes/sessionRequests');
 
 // Placeholder for unimplemented routes
 const toBeImplemented = (req, res) => {
@@ -413,13 +415,13 @@ app.use('/api/users', userRoutes);
 app.use('/api/resources', resourceRoutes);
 app.use('/api/modules', moduleRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/sessions', sessionRoutes);
+app.use('/api/session-requests', sessionRequestRoutes);
 
 // Unimplemented Routes (Placeholders)
-app.use('/api/sessions', toBeImplemented);
 app.use('/api/groups', toBeImplemented);
 app.use('/api/posts', toBeImplemented);
 app.use('/api/reviews', toBeImplemented);
-app.use('/api/session-requests', toBeImplemented);
 
 
 
