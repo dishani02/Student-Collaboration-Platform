@@ -1,31 +1,33 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import DashboardLayout from '../../components/layout/DashboardLayout';
-import Card from '../../components/common/Card';
-import Button from '../../components/common/Button';
-import Input from '../../components/common/Input';
-import API from '../../utils/api';
-import { ArrowLeft } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import DashboardLayout from "../../components/layout/DashboardLayout";
+import Card from "../../components/common/Card";
+import Button from "../../components/common/Button";
+import Input from "../../components/common/Input";
+import API from "../../utils/api";
+import { ArrowLeft, RotateCcw, CalendarDays, MapPin, Link2 } from "lucide-react";
+import toast from "react-hot-toast";
 
 const AdminEditSessionDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [session, setSession] = useState(null);
+  const [originalForm, setOriginalForm] = useState(null);
   const [form, setForm] = useState({
-    title: '',
-    moduleCode: '',
-    description: '',
+    title: "",
+    moduleCode: "",
+    description: "",
     requiredStudents: 25,
     requiredExperts: 1,
-    date: '',
-    startTime: '',
-    endTime: '',
+    date: "",
+    startTime: "",
+    endTime: "",
     isOnline: false,
-    venue: '',
-    meetingLink: ''
+    venue: "",
+    meetingLink: "",
   });
 
   useEffect(() => {
@@ -33,43 +35,150 @@ const AdminEditSessionDetails = () => {
       try {
         const res = await API.get(`/sessions/${id}`);
         const s = res.data.session;
-        setSession(s);
-        setForm({
-          title: s.title || '',
-          moduleCode: s.moduleCode || '',
-          description: s.description || '',
+
+        const mappedForm = {
+          title: s.title || "",
+          moduleCode: s.moduleCode || "",
+          description: s.description || "",
           requiredStudents: s.requiredStudents ?? 25,
           requiredExperts: s.requiredExperts ?? 1,
-          date: s.date ? s.date.split('T')[0] : '',
-          startTime: s.startTime || '',
-          endTime: s.endTime || '',
+          date: s.date ? s.date.split("T")[0] : "",
+          startTime: s.startTime || "",
+          endTime: s.endTime || "",
           isOnline: s.isOnline || false,
-          venue: s.venue || '',
-          meetingLink: s.meetingLink || ''
-        });
-      } catch (e) {
-        toast.error('Failed to load session');
-        navigate('/admin/sessions');
+          venue: s.venue || "",
+          meetingLink: s.meetingLink || "",
+        };
+
+        setSession(s);
+        setForm(mappedForm);
+        setOriginalForm(mappedForm);
+      } catch (error) {
+        toast.error("Failed to load session");
+        navigate("/admin/sessions");
       } finally {
         setLoading(false);
       }
     };
+
     fetchSession();
   }, [id, navigate]);
 
+  const handleChange = (field, value) => {
+    setForm((prev) => {
+      const updated = {
+        ...prev,
+        [field]: value,
+      };
+
+      if (field === "isOnline") {
+        if (value) {
+          updated.venue = "";
+        } else {
+          updated.meetingLink = "";
+        }
+      }
+
+      return updated;
+    });
+  };
+
+  const handleReset = () => {
+    if (originalForm) {
+      setForm(originalForm);
+      toast.success("Form reset to original values");
+    }
+  };
+
+  const validateForm = () => {
+    if (!form.title.trim()) {
+      toast.error("Title is required");
+      return false;
+    }
+
+    if (form.title.trim().length < 5) {
+      toast.error("Title must be at least 5 characters long");
+      return false;
+    }
+
+    if (!form.moduleCode.trim()) {
+      toast.error("Module code is required");
+      return false;
+    }
+
+    if (!form.description.trim()) {
+      toast.error("Description is required");
+      return false;
+    }
+
+    if (form.description.trim().length < 20) {
+      toast.error("Description must be at least 20 characters long");
+      return false;
+    }
+
+    if (form.requiredStudents < 1) {
+      toast.error("Required students must be at least 1");
+      return false;
+    }
+
+    if (form.requiredExperts < 1) {
+      toast.error("Required experts must be at least 1");
+      return false;
+    }
+
+    if ((form.startTime && !form.endTime) || (!form.startTime && form.endTime)) {
+      toast.error("Please provide both start time and end time");
+      return false;
+    }
+
+    if ((form.date && !form.startTime) || (!form.date && form.startTime)) {
+      toast.error("Date and time should be provided together");
+      return false;
+    }
+
+    if (form.startTime && form.endTime && form.endTime <= form.startTime) {
+      toast.error("End time must be later than start time");
+      return false;
+    }
+
+    if (form.isOnline) {
+      if (!form.meetingLink.trim()) {
+        toast.error("Meeting link is required for online sessions");
+        return false;
+      }
+    } else {
+      if (form.date && !form.venue.trim()) {
+        toast.error("Venue is required for physical sessions");
+        return false;
+      }
+    }
+
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!validateForm()) return;
+
     try {
       setSaving(true);
+
       const payload = {
         ...form,
-        date: form.date || undefined
+        title: form.title.trim(),
+        moduleCode: form.moduleCode.trim(),
+        description: form.description.trim(),
+        venue: form.isOnline ? "" : form.venue.trim(),
+        meetingLink: form.isOnline ? form.meetingLink.trim() : "",
+        date: form.date || undefined,
       };
+
       await API.put(`/sessions/${id}`, payload);
-      toast.success('Session updated successfully');
+      toast.success("Session updated successfully");
       navigate(`/admin/sessions/${id}`);
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to update session');
+      toast.error(error.response?.data?.message || "Failed to update session");
     } finally {
       setSaving(false);
     }
@@ -78,115 +187,191 @@ const AdminEditSessionDetails = () => {
   if (loading || !session) {
     return (
       <DashboardLayout>
-        <div className="p-8 flex justify-center"><div className="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full" /></div>
+        <div className="flex justify-center p-8">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
+        </div>
       </DashboardLayout>
     );
   }
 
   return (
     <DashboardLayout>
-      <div className="p-8 max-w-2xl">
-        <Button variant="ghost" icon={ArrowLeft} onClick={() => navigate(`/admin/sessions/${id}`)} className="mb-6">
+      <div className="max-w-3xl p-8">
+        <Button
+          variant="ghost"
+          icon={ArrowLeft}
+          onClick={() => navigate(`/admin/sessions/${id}`)}
+          className="mb-6"
+        >
           Back to Session
         </Button>
-        <Card>
-          <h1 className="text-2xl font-bold text-gray-900 mb-6">Edit Session Details</h1>
-          <form onSubmit={handleSubmit} className="space-y-4">
+
+        <Card className="rounded-2xl border border-gray-100 bg-white shadow-lg">
+          <div className="mb-6 border-b border-gray-100 pb-4">
+            <h1 className="text-2xl font-bold text-gray-900">
+              Edit Session Details
+            </h1>
+            <p className="mt-1 text-sm text-gray-500">
+              Update the session information, schedule, and delivery mode.
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
             <Input
               label="Title"
               value={form.title}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              onChange={(e) => handleChange("title", e.target.value)}
               required
             />
+            <p className="-mt-3 text-xs text-gray-500">
+              Title length: {form.title.trim().length} characters
+            </p>
+
             <Input
               label="Module Code"
               value={form.moduleCode}
-              onChange={(e) => setForm({ ...form, moduleCode: e.target.value })}
+              onChange={(e) => handleChange("moduleCode", e.target.value)}
               required
             />
+
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                Description
+              </label>
               <textarea
                 value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                onChange={(e) => handleChange("description", e.target.value)}
                 rows={4}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                maxLength={500}
+                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary-500"
                 required
               />
+              <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
+                <span>Give a clear explanation of the session.</span>
+                <span>{form.description.length}/500</span>
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Input
                 type="number"
                 label="Required Students"
                 value={form.requiredStudents}
-                onChange={(e) => setForm({ ...form, requiredStudents: parseInt(e.target.value) || 25 })}
+                onChange={(e) =>
+                  handleChange(
+                    "requiredStudents",
+                    Math.max(1, Number(e.target.value) || 1)
+                  )
+                }
+                min={1}
               />
               <Input
                 type="number"
                 label="Required Experts"
                 value={form.requiredExperts}
-                onChange={(e) => setForm({ ...form, requiredExperts: parseInt(e.target.value) || 1 })}
+                onChange={(e) =>
+                  handleChange(
+                    "requiredExperts",
+                    Math.max(1, Number(e.target.value) || 1)
+                  )
+                }
+                min={1}
               />
             </div>
-            <div>
-              <p className="text-sm text-gray-600">
-                Adding date/time and venue/meeting link will automatically move this announcement to <strong>Pending</strong>.
-              </p>
+
+            <div className="rounded-xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-800">
+              Adding date, time, and venue or meeting link will automatically
+              move this announcement to <strong>Pending</strong>.
             </div>
+
             <hr className="my-6" />
-            <h3 className="font-semibold text-gray-900">Schedule (optional)</h3>
-            <div className="grid grid-cols-2 gap-4">
+
+            <div className="flex items-center gap-2 text-gray-900">
+              <CalendarDays size={18} className="text-primary-600" />
+              <h3 className="font-semibold">Schedule (optional)</h3>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Input
                 type="date"
                 label="Date"
                 value={form.date}
-                onChange={(e) => setForm({ ...form, date: e.target.value })}
-                min={new Date().toISOString().split('T')[0]}
+                onChange={(e) => handleChange("date", e.target.value)}
+                min={new Date().toISOString().split("T")[0]}
               />
               <Input
                 label="Start Time"
                 value={form.startTime}
-                onChange={(e) => setForm({ ...form, startTime: e.target.value })}
+                onChange={(e) => handleChange("startTime", e.target.value)}
                 placeholder="e.g. 14:00"
               />
               <Input
                 label="End Time"
                 value={form.endTime}
-                onChange={(e) => setForm({ ...form, endTime: e.target.value })}
+                onChange={(e) => handleChange("endTime", e.target.value)}
                 placeholder="e.g. 16:00"
               />
             </div>
+
             <div>
-              <label className="flex items-center gap-2 mb-2">
+              <label className="mb-3 flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={form.isOnline}
-                  onChange={(e) => setForm({ ...form, isOnline: e.target.checked })}
+                  onChange={(e) => handleChange("isOnline", e.target.checked)}
                   className="rounded"
                 />
                 Online Session
               </label>
+
               {form.isOnline ? (
-                <Input
-                  label="Meeting Link (Zoom/Meet)"
-                  value={form.meetingLink}
-                  onChange={(e) => setForm({ ...form, meetingLink: e.target.value })}
-                  placeholder="https://..."
-                />
+                <div>
+                  <label className="mb-1.5 flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <Link2 size={16} className="text-primary-600" />
+                    Meeting Link
+                  </label>
+                  <Input
+                    label=""
+                    value={form.meetingLink}
+                    onChange={(e) => handleChange("meetingLink", e.target.value)}
+                    placeholder="https://..."
+                  />
+                </div>
               ) : (
-                <Input
-                  label="Venue"
-                  value={form.venue}
-                  onChange={(e) => setForm({ ...form, venue: e.target.value })}
-                  placeholder="Room / Location"
-                />
+                <div>
+                  <label className="mb-1.5 flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <MapPin size={16} className="text-primary-600" />
+                    Venue
+                  </label>
+                  <Input
+                    label=""
+                    value={form.venue}
+                    onChange={(e) => handleChange("venue", e.target.value)}
+                    placeholder="Room / Location"
+                  />
+                </div>
               )}
             </div>
-            <div className="flex gap-3 pt-4">
+
+            <div className="flex flex-col gap-3 pt-4 sm:flex-row">
               <Button type="submit" loading={saving}>
                 Save Changes
               </Button>
-              <Button variant="outline" type="button" onClick={() => navigate(`/admin/sessions/${id}`)}>
+
+              <Button
+                variant="outline"
+                type="button"
+                icon={RotateCcw}
+                onClick={handleReset}
+              >
+                Reset
+              </Button>
+
+              <Button
+                variant="outline"
+                type="button"
+                onClick={() => navigate(`/admin/sessions/${id}`)}
+              >
                 Cancel
               </Button>
             </div>
