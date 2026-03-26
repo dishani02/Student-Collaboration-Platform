@@ -11,38 +11,110 @@ import {
   Users,
   BookOpen,
   FileText,
+  RotateCcw,
 } from "lucide-react";
 import toast from "react-hot-toast";
+
+const initialForm = {
+  title: "",
+  moduleCode: "",
+  description: "",
+  requiredStudents: 25,
+  requiredExperts: 1,
+};
 
 const AdminCreateSession = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [modules, setModules] = useState([]);
-  const [form, setForm] = useState({
-    title: "",
-    moduleCode: "",
-    description: "",
-    requiredStudents: 25,
-    requiredExperts: 1,
-  });
+  const [modulesLoading, setModulesLoading] = useState(true);
+  const [moduleError, setModuleError] = useState("");
+  const [form, setForm] = useState(initialForm);
 
   useEffect(() => {
-    API.get("/modules")
-      .then((res) => setModules(res.data.modules || []))
-      .catch(() => {});
+    const fetchModules = async () => {
+      try {
+        setModulesLoading(true);
+        setModuleError("");
+
+        const res = await API.get("/modules");
+        setModules(res.data.modules || []);
+      } catch (error) {
+        setModuleError("Failed to load modules");
+        toast.error("Unable to load modules");
+      } finally {
+        setModulesLoading(false);
+      }
+    };
+
+    fetchModules();
   }, []);
+
+  const handleChange = (field, value) => {
+    setForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleReset = () => {
+    setForm(initialForm);
+    toast.success("Form reset successfully");
+  };
+
+  const validateForm = () => {
+    if (!form.title.trim()) {
+      toast.error("Session title is required");
+      return false;
+    }
+
+    if (form.title.trim().length < 5) {
+      toast.error("Title must be at least 5 characters long");
+      return false;
+    }
+
+    if (!form.moduleCode) {
+      toast.error("Please select a module");
+      return false;
+    }
+
+    if (!form.description.trim()) {
+      toast.error("Description is required");
+      return false;
+    }
+
+    if (form.description.trim().length < 20) {
+      toast.error("Description must be at least 20 characters long");
+      return false;
+    }
+
+    if (form.requiredStudents < 1) {
+      toast.error("Required students must be at least 1");
+      return false;
+    }
+
+    if (form.requiredExperts < 1) {
+      toast.error("Required experts must be at least 1");
+      return false;
+    }
+
+    return true;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!form.title || !form.moduleCode || !form.description) {
-      toast.error("Title, module code and description are required");
-      return;
-    }
+    if (!validateForm()) return;
+
+    const payload = {
+      ...form,
+      title: form.title.trim(),
+      description: form.description.trim(),
+    };
 
     try {
       setLoading(true);
-      await API.post("/sessions", form);
+      await API.post("/sessions", payload);
       toast.success("Session announcement created successfully");
       navigate("/admin/sessions");
     } catch (error) {
@@ -51,6 +123,9 @@ const AdminCreateSession = () => {
       setLoading(false);
     }
   };
+
+  const isSubmitDisabled =
+    loading || modulesLoading || modules.length === 0 || !!moduleError;
 
   return (
     <DashboardLayout>
@@ -71,10 +146,10 @@ const AdminCreateSession = () => {
                 <CalendarDays size={28} />
               </div>
               <div>
-                <h1 className="text-2xl sm:text-3xl font-bold">
+                <h1 className="text-2xl font-bold sm:text-3xl">
                   Create Session Announcement
                 </h1>
-                <p className="mt-2 text-sm sm:text-base text-white/90 max-w-2xl">
+                <p className="mt-2 max-w-2xl text-sm text-white/90 sm:text-base">
                   Create a new academic support session for students and
                   experts. Fill in the details below to publish the
                   announcement.
@@ -107,34 +182,55 @@ const AdminCreateSession = () => {
                     <Input
                       label="Title"
                       value={form.title}
-                      onChange={(e) =>
-                        setForm({ ...form, title: e.target.value })
-                      }
+                      onChange={(e) => handleChange("title", e.target.value)}
                       placeholder="e.g., Data Structures Revision Session"
                       required
                       className="bg-white"
                     />
+                    <p className="text-xs text-gray-500">
+                      Title length: {form.title.trim().length} characters
+                    </p>
 
                     <div>
                       <label className="mb-1.5 flex items-center gap-2 text-sm font-medium text-gray-700">
                         <BookOpen size={16} className="text-primary-600" />
                         Module Code <span className="text-red-500">*</span>
                       </label>
+
                       <select
                         value={form.moduleCode}
                         onChange={(e) =>
-                          setForm({ ...form, moduleCode: e.target.value })
+                          handleChange("moduleCode", e.target.value)
                         }
-                        className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-800 shadow-sm transition focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none"
+                        className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-800 shadow-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-200"
                         required
+                        disabled={modulesLoading || modules.length === 0}
                       >
-                        <option value="">Select module</option>
+                        <option value="">
+                          {modulesLoading
+                            ? "Loading modules..."
+                            : "Select module"}
+                        </option>
                         {modules.map((m) => (
                           <option key={m.code} value={m.code}>
                             {m.code} - {m.name}
                           </option>
                         ))}
                       </select>
+
+                      {moduleError && (
+                        <p className="mt-2 text-xs text-red-500">
+                          {moduleError}
+                        </p>
+                      )}
+
+                      {!modulesLoading &&
+                        !moduleError &&
+                        modules.length === 0 && (
+                          <p className="mt-2 text-xs text-amber-600">
+                            No modules available right now.
+                          </p>
+                        )}
                     </div>
 
                     <div>
@@ -144,17 +240,21 @@ const AdminCreateSession = () => {
                       <textarea
                         value={form.description}
                         onChange={(e) =>
-                          setForm({ ...form, description: e.target.value })
+                          handleChange("description", e.target.value)
                         }
                         rows={5}
-                        className="w-full resize-none rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-800 shadow-sm transition focus:border-primary-500 focus:ring-2 focus:ring-primary-200 outline-none"
+                        maxLength={500}
+                        className="w-full resize-none rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-800 shadow-sm outline-none transition focus:border-primary-500 focus:ring-2 focus:ring-primary-200"
                         placeholder="Describe the session topic, learning outcomes, and who should join..."
                         required
                       />
-                      <p className="mt-2 text-xs text-gray-500">
-                        Add a clear description so students know what the
-                        session covers.
-                      </p>
+                      <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
+                        <p>
+                          Add a clear description so students know what the
+                          session covers.
+                        </p>
+                        <span>{form.description.length}/500</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -174,10 +274,10 @@ const AdminCreateSession = () => {
                         label="Required Students (min)"
                         value={form.requiredStudents}
                         onChange={(e) =>
-                          setForm({
-                            ...form,
-                            requiredStudents: parseInt(e.target.value) || 25,
-                          })
+                          handleChange(
+                            "requiredStudents",
+                            Math.max(1, Number(e.target.value) || 1),
+                          )
                         }
                         min={1}
                       />
@@ -192,10 +292,10 @@ const AdminCreateSession = () => {
                         label="Required Experts"
                         value={form.requiredExperts}
                         onChange={(e) =>
-                          setForm({
-                            ...form,
-                            requiredExperts: parseInt(e.target.value) || 1,
-                          })
+                          handleChange(
+                            "requiredExperts",
+                            Math.max(1, Number(e.target.value) || 1),
+                          )
                         }
                         min={1}
                       />
@@ -210,6 +310,16 @@ const AdminCreateSession = () => {
                   <Button
                     variant="outline"
                     type="button"
+                    onClick={handleReset}
+                    icon={RotateCcw}
+                    className="w-full sm:w-auto"
+                  >
+                    Reset Form
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    type="button"
                     onClick={() => navigate("/admin/sessions")}
                     className="w-full sm:w-auto"
                   >
@@ -219,7 +329,8 @@ const AdminCreateSession = () => {
                   <Button
                     type="submit"
                     loading={loading}
-                    className="w-full sm:w-auto bg-primary-600 hover:bg-primary-700 shadow-md"
+                    disabled={isSubmitDisabled}
+                    className="w-full bg-primary-600 shadow-md hover:bg-primary-700 sm:w-auto"
                   >
                     Create Announcement
                   </Button>
