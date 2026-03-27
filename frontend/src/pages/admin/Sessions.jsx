@@ -1,172 +1,301 @@
-//sessions page for admin to view all sessions, filter by status, and click into details
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import DashboardLayout from '../../components/layout/DashboardLayout';
-import Card from '../../components/common/Card';
-import Badge from '../../components/common/Badge';
-import Button from '../../components/common/Button';
-import Loader from '../../components/common/Loader';
-import ConfirmModal from '../../components/common/ConfirmModal';
-import API from '../../utils/api';
+import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+import DashboardLayout from "../../components/layout/DashboardLayout";
+import Card from "../../components/common/Card";
+import Badge from "../../components/common/Badge";
+import Button from "../../components/common/Button";
+import Loader from "../../components/common/Loader";
+import ConfirmModal from "../../components/common/ConfirmModal";
+import API from "../../utils/api";
 import {
   Calendar,
   Clock,
-  MapPin,
   Users,
-  Video,
   FileText,
   CheckCircle,
   XCircle,
   Search,
-  History,
   Plus,
   UserCheck,
-  Send,
-  MessageSquare
-} from 'lucide-react';
-import { formatDate } from '../../utils/helpers';
-import toast from 'react-hot-toast';
+  MessageSquare,
+  RefreshCw,
+  FilterX,
+} from "lucide-react";
+import { formatDate } from "../../utils/helpers";
+import toast from "react-hot-toast";
 
 const AdminSessions = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('announcements');
+
+  const [activeTab, setActiveTab] = useState("announcements");
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterModule, setFilterModule] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterModule, setFilterModule] = useState("");
+  const [modules, setModules] = useState([]);
+  const [moduleLoading, setModuleLoading] = useState(false);
+
   const [sessions, setSessions] = useState({
     announcements: [],
     pending: [],
     completed: [],
     cancelled: [],
-    sessionRequestHistory: []
+    sessionRequestHistory: [],
   });
-  const [modules, setModules] = useState([]);
+
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [requestToDelete, setRequestToDelete] = useState(null);
+  const [actionLoading, setActionLoading] = useState(null);
+
+  useEffect(() => {
+    fetchModules();
+  }, []);
 
   useEffect(() => {
     fetchSessions();
-    fetchModules();
   }, [activeTab]);
 
   const fetchModules = async () => {
     try {
-      const res = await API.get('/modules');
+      setModuleLoading(true);
+      const res = await API.get("/modules");
       setModules(res.data.modules || []);
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to load modules");
+    } finally {
+      setModuleLoading(false);
     }
+  };
+
+  const fetchSessions = async (silent = false) => {
+    try {
+      if (!silent) setLoading(true);
+
+      if (activeTab === "announcements") {
+        const res = await API.get("/sessions?status=requested");
+        setSessions((prev) => ({
+          ...prev,
+          announcements: res.data.sessions || [],
+        }));
+      } else if (activeTab === "pending") {
+        const res = await API.get("/sessions?status=pending");
+        setSessions((prev) => ({
+          ...prev,
+          pending: res.data.sessions || [],
+        }));
+      } else if (activeTab === "completed") {
+        const res = await API.get("/sessions?status=completed");
+        setSessions((prev) => ({
+          ...prev,
+          completed: res.data.sessions || [],
+        }));
+      } else if (activeTab === "cancelled") {
+        const res = await API.get("/sessions?status=cancelled");
+        setSessions((prev) => ({
+          ...prev,
+          cancelled: res.data.sessions || [],
+        }));
+      } else if (activeTab === "session-request-history") {
+        const res = await API.get("/session-requests");
+        setSessions((prev) => ({
+          ...prev,
+          sessionRequestHistory: res.data.sessionRequests || [],
+        }));
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to load sessions");
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    await Promise.all([fetchSessions(true), fetchModules()]);
+    toast.success("Session data refreshed");
   };
 
   const handleDeleteRequest = async () => {
     if (!requestToDelete) return;
+
     try {
+      setActionLoading(`delete-${requestToDelete._id}`);
       await API.delete(`/session-requests/${requestToDelete._id}`);
-      toast.success('Session request deleted successfully');
-      fetchSessions();
-    } catch (e) {
-      toast.error('Failed to delete session request');
+      toast.success("Session request deleted successfully");
+      await fetchSessions(true);
+    } catch (error) {
+      toast.error("Failed to delete session request");
     } finally {
       setDeleteModalOpen(false);
       setRequestToDelete(null);
+      setActionLoading(null);
     }
   };
 
-  const fetchSessions = async () => {
+  const handleMarkAsSeen = async (requestId) => {
     try {
-      setLoading(true);
-      if (activeTab === 'announcements') {
-        const res = await API.get('/sessions?status=requested');
-        setSessions(prev => ({ ...prev, announcements: res.data.sessions || [] }));
-      } else if (activeTab === 'pending') {
-        const res = await API.get('/sessions?status=pending');
-        setSessions(prev => ({ ...prev, pending: res.data.sessions || [] }));
-      } else if (activeTab === 'completed') {
-        const res = await API.get('/sessions?status=completed');
-        setSessions(prev => ({ ...prev, completed: res.data.sessions || [] }));
-      } else if (activeTab === 'cancelled') {
-        const res = await API.get('/sessions?status=cancelled');
-        setSessions(prev => ({ ...prev, cancelled: res.data.sessions || [] }));
-      } else if (activeTab === 'session-request-history') {
-        const res = await API.get('/session-requests');
-        setSessions(prev => ({ ...prev, sessionRequestHistory: res.data.sessionRequests || [] }));
-      }
+      setActionLoading(`seen-${requestId}`);
+      await API.patch(`/session-requests/${requestId}/message-status`);
+      toast.success("Marked as seen");
+      await fetchSessions(true);
     } catch (error) {
-      console.error(error);
-      toast.error('Failed to load sessions');
+      toast.error("Failed to update message status");
     } finally {
-      setLoading(false);
+      setActionLoading(null);
     }
   };
 
-  const getFilteredSessions = () => {
-    let list = sessions[activeTab] || [];
-    if (activeTab === 'session-request-history') {
-      return list; // session requests - no session-style filtering
+  const handleCancelAnnouncement = async (sessionId) => {
+    try {
+      setActionLoading(`cancel-${sessionId}`);
+      await API.patch(`/sessions/${sessionId}/cancel`);
+      toast.success("Announcement cancelled");
+      await fetchSessions(true);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to cancel");
+    } finally {
+      setActionLoading(null);
     }
-    if (searchQuery) {
-      list = list.filter(s =>
-        s.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.moduleCode?.toLowerCase().includes(searchQuery.toLowerCase())
+  };
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setFilterModule("");
+  };
+
+  const filteredSessions = useMemo(() => {
+    let list = sessions[activeTab] || [];
+
+    if (activeTab === "session-request-history") {
+      return list;
+    }
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      list = list.filter(
+        (s) =>
+          s.title?.toLowerCase().includes(query) ||
+          s.moduleCode?.toLowerCase().includes(query) ||
+          s.description?.toLowerCase().includes(query),
       );
     }
+
     if (filterModule) {
-      list = list.filter(s => s.moduleCode === filterModule);
+      list = list.filter((s) => s.moduleCode === filterModule);
     }
+
     return list;
-  };
+  }, [sessions, activeTab, searchQuery, filterModule]);
 
   const sessionRequests = sessions.sessionRequestHistory || [];
 
   const tabs = [
-    { id: 'announcements', label: 'Session Announcements', icon: FileText },
-    { id: 'pending', label: 'Pending', icon: Clock },
-    { id: 'completed', label: 'Completed', icon: CheckCircle },
-    { id: 'cancelled', label: 'Cancelled', icon: XCircle },
-    { id: 'session-request-history', label: 'Request Session History', icon: MessageSquare }
+    {
+      id: "announcements",
+      label: "Session Announcements",
+      icon: FileText,
+      count: sessions.announcements.length,
+    },
+    {
+      id: "pending",
+      label: "Pending",
+      icon: Clock,
+      count: sessions.pending.length,
+    },
+    {
+      id: "completed",
+      label: "Completed",
+      icon: CheckCircle,
+      count: sessions.completed.length,
+    },
+    {
+      id: "cancelled",
+      label: "Cancelled",
+      icon: XCircle,
+      count: sessions.cancelled.length,
+    },
+    {
+      id: "session-request-history",
+      label: "Request Session History",
+      icon: MessageSquare,
+      count: sessions.sessionRequestHistory.length,
+    },
   ];
 
   return (
     <DashboardLayout>
       <div className="p-8">
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-6 flex items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Sessions</h1>
-            <p className="text-gray-600 mt-1">Manage session announcements and requests</p>
+            <p className="mt-1 text-gray-600">
+              Manage session announcements and requests
+            </p>
           </div>
-          <Button icon={Plus} onClick={() => navigate('/admin/sessions/create')}>
-            Create Session Announcement
-          </Button>
+
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              icon={RefreshCw}
+              onClick={handleRefresh}
+              disabled={loading}
+            >
+              Refresh
+            </Button>
+            <Button
+              icon={Plus}
+              onClick={() => navigate("/admin/sessions/create")}
+            >
+              Create Session Announcement
+            </Button>
+          </div>
         </div>
 
         <Card className="mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="md:col-span-2 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <div className="relative md:col-span-2">
+              <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search sessions..."
-                className="w-full pl-11 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                className="w-full rounded-lg border border-gray-300 py-2.5 pl-11 pr-4 outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
+
             <select
               value={filterModule}
               onChange={(e) => setFilterModule(e.target.value)}
-              className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+              className="rounded-lg border border-gray-300 px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary-500"
+              disabled={moduleLoading}
             >
-              <option value="">All Modules</option>
-              {modules.map(m => (
-                <option key={m.code} value={m.code}>{m.code}</option>
+              <option value="">
+                {moduleLoading ? "Loading modules..." : "All Modules"}
+              </option>
+              {modules.map((m) => (
+                <option key={m.code} value={m.code}>
+                  {m.code}
+                </option>
               ))}
             </select>
+
+            <Button variant="outline" icon={FilterX} onClick={clearFilters}>
+              Clear Filters
+            </Button>
           </div>
+
+          {activeTab !== "session-request-history" && (
+            <p className="mt-4 text-sm text-gray-500">
+              Showing {filteredSessions.length} of{" "}
+              {(sessions[activeTab] || []).length} sessions
+            </p>
+          )}
         </Card>
 
-        <div className="border-b border-gray-200 mb-6">
+        <div className="mb-6 border-b border-gray-200">
           <div className="flex gap-2 overflow-x-auto">
             {tabs.map((tab) => {
               const Icon = tab.icon;
@@ -174,14 +303,23 @@ const AdminSessions = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-all whitespace-nowrap font-medium ${
+                  className={`flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-3 font-medium transition-all ${
                     activeTab === tab.id
-                      ? 'border-primary-500 text-primary-600'
-                      : 'border-transparent text-gray-600 hover:text-gray-900'
+                      ? "border-primary-500 text-primary-600"
+                      : "border-transparent text-gray-600 hover:text-gray-900"
                   }`}
                 >
-                  <Icon className="w-5 h-5" />
+                  <Icon className="h-5 w-5" />
                   <span>{tab.label}</span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs ${
+                      activeTab === tab.id
+                        ? "bg-primary-100 text-primary-700"
+                        : "bg-gray-100 text-gray-600"
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
                 </button>
               );
             })}
@@ -192,13 +330,18 @@ const AdminSessions = () => {
           <div className="flex justify-center py-12">
             <Loader size="lg" text="Loading..." />
           </div>
-        ) : activeTab === 'session-request-history' ? (
+        ) : activeTab === "session-request-history" ? (
           sessionRequests.length === 0 ? (
             <Card>
-              <div className="text-center py-12">
-                <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No session requests yet</h3>
-                <p className="text-gray-600 mb-4">Students and experts can request new sessions from the Request Session form. Their messages will appear here.</p>
+              <div className="py-12 text-center">
+                <MessageSquare className="mx-auto mb-4 h-16 w-16 text-gray-300" />
+                <h3 className="mb-2 text-lg font-semibold text-gray-900">
+                  No session requests yet
+                </h3>
+                <p className="mb-4 text-gray-600">
+                  Students and experts can request new sessions from the Request
+                  Session form. Their messages will appear here.
+                </p>
               </div>
             </Card>
           ) : (
@@ -207,41 +350,53 @@ const AdminSessions = () => {
                 <Card key={req._id} className="border-l-4 border-l-primary-500">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="font-semibold text-gray-900">{req.user?.fullName || 'Unknown'}</span>
-                        <span className="text-sm text-gray-500">({req.user?.email})</span>
+                      <div className="mb-2 flex flex-wrap items-center gap-2">
+                        <span className="font-semibold text-gray-900">
+                          {req.user?.fullName || "Unknown"}
+                        </span>
+                        <span className="text-sm text-gray-500">
+                          ({req.user?.email || "No email"})
+                        </span>
                         <Badge
-                          variant={req.messageStatus === 'seen' ? 'success' : 'default'}
+                          variant={
+                            req.messageStatus === "seen" ? "success" : "default"
+                          }
                           size="sm"
                         >
-                          {req.messageStatus === 'seen' ? 'Message seen' : 'Delivered'}
+                          {req.messageStatus === "seen"
+                            ? "Message seen"
+                            : "Delivered"}
                         </Badge>
                       </div>
-                      <p className="font-medium text-gray-900 mb-1">{req.topic}</p>
+
+                      <p className="mb-1 font-medium text-gray-900">
+                        {req.topic}
+                      </p>
+
                       {req.moduleCode && (
-                        <p className="text-sm text-primary-600 mb-1">Module: {req.moduleCode}</p>
+                        <p className="mb-1 text-sm text-primary-600">
+                          Module: {req.moduleCode}
+                        </p>
                       )}
-                      <p className="text-gray-600 text-sm">{req.reason}</p>
-                      <p className="text-xs text-gray-400 mt-2">{formatDate(req.createdAt)}</p>
+
+                      <p className="text-sm text-gray-600">{req.reason}</p>
+                      <p className="mt-2 text-xs text-gray-400">
+                        {formatDate(req.createdAt)}
+                      </p>
                     </div>
+
                     <div className="flex flex-col items-end gap-2">
-                      {req.messageStatus !== 'seen' && (
+                      {req.messageStatus !== "seen" && (
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={async () => {
-                            try {
-                              await API.patch(`/session-requests/${req._id}/message-status`);
-                              toast.success('Marked as seen');
-                              fetchSessions();
-                            } catch (e) {
-                              toast.error('Failed to update message status');
-                            }
-                          }}
+                          onClick={() => handleMarkAsSeen(req._id)}
+                          loading={actionLoading === `seen-${req._id}`}
                         >
                           Mark as seen
                         </Button>
                       )}
+
                       <Button
                         size="sm"
                         variant="danger"
@@ -249,6 +404,7 @@ const AdminSessions = () => {
                           setRequestToDelete(req);
                           setDeleteModalOpen(true);
                         }}
+                        loading={actionLoading === `delete-${req._id}`}
                       >
                         Delete
                       </Button>
@@ -258,90 +414,141 @@ const AdminSessions = () => {
               ))}
             </div>
           )
-        ) : getFilteredSessions().length === 0 ? (
+        ) : filteredSessions.length === 0 ? (
           <Card>
-            <div className="text-center py-12">
-              <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                {activeTab === 'announcements' && 'No session announcements'}
-                {activeTab === 'pending' && 'No pending sessions'}
-                {activeTab === 'completed' && 'No completed sessions'}
-                {activeTab === 'cancelled' && 'No cancelled sessions'}
+            <div className="py-12 text-center">
+              <FileText className="mx-auto mb-4 h-16 w-16 text-gray-300" />
+              <h3 className="mb-2 text-lg font-semibold text-gray-900">
+                {activeTab === "announcements" && "No session announcements"}
+                {activeTab === "pending" && "No pending sessions"}
+                {activeTab === "completed" && "No completed sessions"}
+                {activeTab === "cancelled" && "No cancelled sessions"}
               </h3>
-              <p className="text-gray-600 mb-4">
-                {activeTab === 'announcements' && 'Create a session announcement to get started'}
-                {activeTab === 'pending' && 'Sessions that have been scheduled will appear here'}
-                {activeTab === 'cancelled' && 'Cancelled sessions will appear here'}
+              <p className="mb-4 text-gray-600">
+                {activeTab === "announcements" &&
+                  "Create a session announcement to get started"}
+                {activeTab === "pending" &&
+                  "Sessions that have been scheduled will appear here"}
+                {activeTab === "completed" &&
+                  "Completed sessions will appear here"}
+                {activeTab === "cancelled" &&
+                  "Cancelled sessions will appear here"}
               </p>
-              {activeTab === 'announcements' && (
-                <Button icon={Plus} onClick={() => navigate('/admin/sessions/create')}>
-                  Create Session Announcement
+
+              <div className="flex justify-center gap-3">
+                <Button variant="outline" onClick={clearFilters}>
+                  Reset Filters
                 </Button>
-              )}
+
+                {activeTab === "announcements" && (
+                  <Button
+                    icon={Plus}
+                    onClick={() => navigate("/admin/sessions/create")}
+                  >
+                    Create Session Announcement
+                  </Button>
+                )}
+              </div>
             </div>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {getFilteredSessions().map((session) => (
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {filteredSessions.map((session) => (
               <Card
                 key={session._id}
                 hover
                 className="cursor-pointer"
                 onClick={() => navigate(`/admin/sessions/${session._id}`)}
               >
-                <div className="flex items-start justify-between mb-3">
+                <div className="mb-3 flex items-start justify-between">
                   <div>
-                    <h3 className="font-semibold text-lg text-gray-900">{session.title}</h3>
-                    <Badge variant="primary-outline" size="sm">{session.moduleCode}</Badge>
-                    <Badge variant={
-                      session.status === 'requested' ? 'info' :
-                      session.status === 'cancelled' ? 'danger' :
-                      session.status === 'completed' ? 'default' : 'success'
-                    } className="ml-2">
-                      {session.status === 'requested' ? 'Announcement' : session.status}
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {session.title}
+                    </h3>
+                    <Badge variant="primary-outline" size="sm">
+                      {session.moduleCode}
+                    </Badge>
+                    <Badge
+                      variant={
+                        session.status === "requested"
+                          ? "info"
+                          : session.status === "cancelled"
+                            ? "danger"
+                            : session.status === "completed"
+                              ? "default"
+                              : "success"
+                      }
+                      className="ml-2"
+                    >
+                      {session.status === "requested"
+                        ? "Announcement"
+                        : session.status}
                     </Badge>
                   </div>
                 </div>
-                <p className="text-sm text-gray-600 mb-4 line-clamp-2">{session.description}</p>
-                <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
+
+                <p className="mb-4 line-clamp-2 text-sm text-gray-600">
+                  {session.description}
+                </p>
+
+                <div className="mb-3 flex flex-wrap items-center gap-4 text-sm text-gray-600">
                   <span className="flex items-center gap-1">
-                    <Users className="w-4 h-4" />
-                    {session.participants?.length || 0} / {session.requiredStudents}
+                    <Users className="h-4 w-4" />
+                    {session.participants?.length || 0} /{" "}
+                    {session.requiredStudents}
                   </span>
+
                   {session.expert && (
-                    <Badge variant="success" size="sm"><CheckCircle className="w-3 h-3" /> Expert assigned</Badge>
+                    <Badge variant="success" size="sm">
+                      <CheckCircle className="h-3 w-3" /> Expert assigned
+                    </Badge>
                   )}
-                  {!session.expert && session.pendingRequests?.some(r => r.role === 'expert' && r.status === 'pending') && (
-                    <Badge variant="warning" size="sm"><UserCheck className="w-3 h-3" /> Expert Requested</Badge>
-                  )}
+
+                  {!session.expert &&
+                    session.pendingRequests?.some(
+                      (r) => r.role === "expert" && r.status === "pending",
+                    ) && (
+                      <Badge variant="warning" size="sm">
+                        <UserCheck className="h-3 w-3" /> Expert Requested
+                      </Badge>
+                    )}
                 </div>
+
                 {session.date && (
                   <div className="flex items-center gap-2 text-sm text-gray-500">
-                    <Calendar className="w-4 h-4" />
+                    <Calendar className="h-4 w-4" />
                     {formatDate(session.date)}
                     {session.startTime && ` • ${session.startTime}`}
                   </div>
                 )}
-                <div className="mt-4 pt-4 border-t border-gray-200 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
-                  <Button size="sm" variant="outline" onClick={() => navigate(`/admin/sessions/${session._id}`)}>
+
+                <div
+                  className="mt-4 flex flex-wrap gap-2 border-t border-gray-200 pt-4"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => navigate(`/admin/sessions/${session._id}`)}
+                  >
                     View / Edit
                   </Button>
-                  <Button size="sm" onClick={() => navigate(`/admin/sessions/${session._id}/edit`)}>
+
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      navigate(`/admin/sessions/${session._id}/edit`)
+                    }
+                  >
                     Edit Details
                   </Button>
-                  {activeTab === 'announcements' && (
+
+                  {activeTab === "announcements" && (
                     <Button
                       size="sm"
                       variant="danger"
-                      onClick={async () => {
-                        try {
-                          await API.patch(`/sessions/${session._id}/cancel`);
-                          toast.success('Announcement cancelled');
-                          fetchSessions();
-                        } catch (e) {
-                          toast.error('Failed to cancel');
-                        }
-                      }}
+                      onClick={() => handleCancelAnnouncement(session._id)}
+                      loading={actionLoading === `cancel-${session._id}`}
                     >
                       Cancel
                     </Button>
