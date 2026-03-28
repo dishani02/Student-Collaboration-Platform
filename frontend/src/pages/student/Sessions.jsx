@@ -12,11 +12,11 @@ import Modal from '../../components/common/Modal';
 import Input from '../../components/common/Input';
 import Select from '../../components/common/Select';
 import API from '../../utils/api';
-import { 
-  Calendar, 
-  Clock, 
-  MapPin, 
-  Star, 
+import {
+  Calendar,
+  Clock,
+  MapPin,
+  Star,
   Users,
   Video,
   FileText,
@@ -27,7 +27,8 @@ import {
   Filter,
   Sparkles,
   History,
-  Send
+  Send,
+  Trash2
 } from 'lucide-react';
 import { formatDate, getStatusColor } from '../../utils/helpers';
 import toast from 'react-hot-toast';
@@ -67,15 +68,17 @@ const StudentSessions = () => {
 
   useEffect(() => {
     if (user) {
-      console.log('📚 Loading student enrolled modules...');
       loadEnrolledModules();
     }
   }, [user]);
 
   useEffect(() => {
     fetchSessions();
-    fetchModules();
   }, [activeTab]);
+
+  useEffect(() => {
+    fetchModules();
+  }, []); // Only once on mount
 
   // When switching to Request History tab, load student's session requests
   useEffect(() => {
@@ -84,96 +87,16 @@ const StudentSessions = () => {
     }
   }, [activeTab]);
 
-  // Load YouTube video suggestions when on AI tab and user types a query
-  useEffect(() => {
-    const load = async () => {
-      if (activeTab !== 'ai-recommendations') {
-        setVideoSuggestions([]);
-        setLoadingVideos(false);
-        return;
-      }
-      if (!searchQuery || searchQuery.trim().length < 3) {
-        setVideoSuggestions([]);
-        setLoadingVideos(false);
-        return;
-      }
-      try {
-        setLoadingVideos(true);
-        const trimmed = searchQuery.trim();
-        const res = await API.get(`/ai/suggest-session-videos?query=${encodeURIComponent(trimmed)}`);
-        const serverSuggestions = Array.isArray(res.data?.suggestions) ? res.data.suggestions : [];
+  // AI Suggestions feature (Coming Soon)
+  // Logic removed as per request to keep it a placeholder/to-be-implemented part
 
-        // Fallback: if backend returns no suggestions for some reason,
-        // build simple YouTube search links on the client so the tab is never empty.
-        const fallbackBase = 'https://www.youtube.com/results?search_query=';
-        const enc = (q) => encodeURIComponent(q);
-        const fallbackSuggestions = [
-          {
-            title: `YouTube search for "${trimmed}"`,
-            description: `Open YouTube results for "${trimmed}".`,
-            type: 'Search',
-            videoUrl: `${fallbackBase}${enc(trimmed)}`,
-            platform: 'YouTube'
-          },
-          {
-            title: `Lecture / playlist: ${trimmed}`,
-            description: 'Look for lecture series and playlists.',
-            type: 'Playlist',
-            videoUrl: `${fallbackBase}${enc(trimmed + ' lecture playlist')}`,
-            platform: 'YouTube'
-          },
-          {
-            title: `Tutorial videos: ${trimmed}`,
-            description: 'Find hands‑on tutorials and walkthroughs.',
-            type: 'Tutorial',
-            videoUrl: `${fallbackBase}${enc(trimmed + ' tutorial')}`,
-            platform: 'YouTube'
-          }
-        ];
-
-        setVideoSuggestions(serverSuggestions.length > 0 ? serverSuggestions : fallbackSuggestions);
-      } catch (e) {
-        console.error('❌ Session video suggestions failed:', e);
-        // Even on error, provide basic YouTube search links so the UI is never empty
-        const trimmed = searchQuery.trim();
-        const base = 'https://www.youtube.com/results?search_query=';
-        const enc = (q) => encodeURIComponent(q);
-        setVideoSuggestions([
-          {
-            title: `YouTube search for "${trimmed}"`,
-            description: `Open YouTube results for "${trimmed}".`,
-            type: 'Search',
-            videoUrl: `${base}${enc(trimmed)}`,
-            platform: 'YouTube'
-          },
-          {
-            title: `Tutorial videos: ${trimmed}`,
-            description: 'Find hands‑on tutorials and walkthroughs.',
-            type: 'Tutorial',
-            videoUrl: `${base}${enc(trimmed + ' tutorial')}`,
-            platform: 'YouTube'
-          }
-        ]);
-      } finally {
-        setLoadingVideos(false);
-      }
-    };
-
-    load();
-  }, [activeTab, searchQuery]);
 
   const loadEnrolledModules = async () => {
     try {
       // Preferred: use student's enrolledModules codes
       const enrolledCodes = user?.enrolledModules || [];
-      console.log('✅ Student enrolled modules:', enrolledCodes);
-
-      const response = await API.get('/modules');
-      const allModules = response.data.modules || [];
-
       if (enrolledCodes.length > 0) {
         const studentModules = allModules.filter((m) => enrolledCodes.includes(m.code));
-        console.log('✅ Loaded enrolled module details:', studentModules.length);
         setEnrolledModules(studentModules);
         return;
       }
@@ -183,14 +106,13 @@ const StudentSessions = () => {
       try {
         const yearRes = await API.get(`/modules/by-year/${year}`);
         const list = yearRes.data.modules || [];
-        console.log(`✅ Loaded ${list.length} year-based modules for year ${year}`);
         setYearModules(list);
       } catch (e) {
-        console.error('❌ Error loading year-based modules:', e);
-        setYearModules(allModules);
+        console.error('Error loading year-based modules:', e);
+        setYearModules(modules);
       }
     } catch (error) {
-      console.error('❌ Error loading enrolled modules:', error);
+      console.error('Error loading enrolled modules:', error);
       setEnrolledModules([]);
       setYearModules([]);
     }
@@ -201,37 +123,34 @@ const StudentSessions = () => {
       const response = await API.get('/modules');
       setModules(response.data.modules || []);
     } catch (error) {
-      console.error('Error fetching modules:', error);
     }
   };
 
   const fetchSessions = async () => {
     try {
-      setLoading(true);
-      
+      // Only show full-page loader if current tab data is completely empty
+      const currentTabData = sessions[activeTab] || [];
+      if (currentTabData.length === 0) {
+        setLoading(true);
+      }
+
       if (activeTab === 'announcements') {
-        // Global view of available sessions to join
         const response = await API.get('/sessions?status=requested');
         setSessions(prev => ({ ...prev, announcements: response.data.sessions || [] }));
-      } 
+      }
       else if (activeTab === 'pending') {
-        // Personalized view of upcoming sessions I'm in
         const response = await API.get(`/sessions?status=pending&participant=${user._id}`);
         setSessions(prev => ({ ...prev, pending: response.data.sessions || [] }));
       }
       else if (activeTab === 'completed') {
-        // Personalized view of my historical sessions
         const response = await API.get(`/sessions?status=completed&participant=${user._id}`);
         setSessions(prev => ({ ...prev, completed: response.data.sessions || [] }));
       }
       else if (activeTab === 'cancelled') {
-        // Global view of cancelled sessions as requested
         const response = await API.get('/sessions?status=cancelled');
         setSessions(prev => ({ ...prev, cancelled: response.data.sessions || [] }));
       }
-      // AI tab handles its own logic in useEffect via YouTube/search
     } catch (error) {
-      console.error('Error fetching sessions:', error);
       setSessions(prev => ({ ...prev, [activeTab]: [] }));
     } finally {
       setLoading(false);
@@ -255,43 +174,41 @@ const StudentSessions = () => {
       toast.success('Joined session successfully');
       fetchSessions();
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Failed to join session');
+      // toast.error is already handled by the API interceptor
     } finally {
       setJoiningSessionId(null);
     }
   };
 
   const openRequestSessionModal = () => {
-    console.log('🎯 Opening request session modal');
-    console.log('📚 Enrolled modules available:', enrolledModules.length);
     setShowRequestSessionModal(true);
     // Load student's previous session requests for status visibility
     loadMySessionRequests();
   };
 
-  const submitRequestSession = async () => {
+  const submitRequestSession = async (e) => {
+    if (e) e.preventDefault();
+
     if (!requestSessionForm.topic?.trim() || !requestSessionForm.reason?.trim()) {
       toast.error('Topic and reason are required');
       return;
     }
     try {
       setRequestSessionLoading(true);
-      console.log('📤 Submitting session request:', requestSessionForm);
-      
+
       await API.post('/session-requests', {
         topic: requestSessionForm.topic.trim(),
         moduleCode: requestSessionForm.moduleCode || '',
         reason: requestSessionForm.reason.trim()
       });
-      
+
       toast.success('Your session request has been sent to the admin (Delivered)');
       setShowRequestSessionModal(false);
       setRequestSessionForm({ topic: '', moduleCode: '', reason: '' });
       // Refresh local history so student can see latest "Delivered" entry
       loadMySessionRequests();
     } catch (e) {
-      console.error('❌ Session request failed:', e);
-      toast.error(e.response?.data?.message || 'Failed to submit request');
+      // toast.error is already handled by the API interceptor
     } finally {
       setRequestSessionLoading(false);
     }
@@ -302,19 +219,30 @@ const StudentSessions = () => {
       const res = await API.get('/session-requests/my-requests');
       setMySessionRequests(Array.isArray(res.data.sessionRequests) ? res.data.sessionRequests : []);
     } catch (e) {
-      console.error('❌ Failed to load my session requests:', e);
+      // toast.error is already handled by the API interceptor
+    }
+  };
+
+  const handleDeleteRequest = async (requestId) => {
+    if (!window.confirm('Are you sure you want to delete this session request?')) return;
+    try {
+      await API.delete(`/session-requests/${requestId}`);
+      toast.success('Session request deleted successfully');
+      loadMySessionRequests();
+    } catch (e) {
+      // toast.error is already handled by the API interceptor
     }
   };
 
   const handleWithdraw = async (sessionId) => {
     if (!confirm('Are you sure you want to withdraw from this session?')) return;
-    
+
     try {
       await API.post(`/sessions/${sessionId}/withdraw`);
       toast.success('Withdrawn from session successfully');
       fetchSessions();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to withdraw');
+      // toast.error is already handled by the API interceptor
     }
   };
 
@@ -350,7 +278,7 @@ const StudentSessions = () => {
       setSelectedSession(null);
       fetchSessions();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to submit rating');
+      // toast.error is already handled by the API interceptor
     } finally {
       setRatingSubmitLoading(false);
     }
@@ -360,7 +288,7 @@ const StudentSessions = () => {
     let sessionList = sessions[activeTab] || [];
 
     if (searchQuery) {
-      sessionList = sessionList.filter(session => 
+      sessionList = sessionList.filter(session =>
         session.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         session.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         session.moduleCode?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -368,7 +296,7 @@ const StudentSessions = () => {
     }
 
     if (filterModule) {
-      sessionList = sessionList.filter(session => 
+      sessionList = sessionList.filter(session =>
         session.moduleCode === filterModule
       );
     }
@@ -397,7 +325,7 @@ const StudentSessions = () => {
     };
 
     return (
-      <Card 
+      <Card
         hover
         className="cursor-pointer"
         onClick={() => navigate(`/student/sessions/${session._id}`)}
@@ -433,7 +361,7 @@ const StudentSessions = () => {
               <span>{formatDate(session.date)}</span>
             </div>
           )}
-          
+
           {session.startTime && (
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <Clock className="w-4 h-4" />
@@ -466,10 +394,10 @@ const StudentSessions = () => {
                 </span>
                 <div className="flex-1 ml-2">
                   <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div 
+                    <div
                       className="h-full bg-primary-500 rounded-full transition-all"
-                      style={{ 
-                        width: `${((session.participants?.length || 0) / (session.maxParticipants || 25)) * 100}%` 
+                      style={{
+                        width: `${((session.participants?.length || 0) / (session.maxParticipants || 25)) * 100}%`
                       }}
                     ></div>
                   </div>
@@ -538,7 +466,7 @@ const StudentSessions = () => {
                   </Button>
                 )}
 
-              {activeTab === 'completed' && session.expert && (
+              {activeTab === 'completed' && session.expert && !session.userRated && (
                 <Button
                   size="sm"
                   variant="outline"
@@ -647,21 +575,19 @@ const StudentSessions = () => {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-shrink-0 px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition-colors ${
-                  activeTab === tab.id
-                    ? 'border-primary-600 text-primary-700'
-                    : 'border-transparent text-gray-500 hover:text-gray-900'
-                }`}
+                className={`flex-shrink-0 px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition-colors ${activeTab === tab.id
+                  ? 'border-primary-600 text-primary-700'
+                  : 'border-transparent text-gray-500 hover:text-gray-900'
+                  }`}
               >
                 <span className="inline-flex items-center gap-2">
                   <Icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-primary-600' : 'text-gray-400'}`} />
                   {tab.label}
                   {tab.count > 0 && (
-                    <span className={`px-2 py-0.5 text-xs rounded-full ${
-                      activeTab === tab.id
-                        ? 'bg-primary-100 text-primary-800'
-                        : 'bg-gray-100 text-gray-700'
-                    }`}>
+                    <span className={`px-2 py-0.5 text-xs rounded-full ${activeTab === tab.id
+                      ? 'bg-primary-100 text-primary-800'
+                      : 'bg-gray-100 text-gray-700'
+                      }`}>
                       {tab.count}
                     </span>
                   )}
@@ -675,64 +601,19 @@ const StudentSessions = () => {
         {activeTab === 'ai-recommendations' ? (
           <div>
             <Card className="mb-6">
-              <div className="py-6 px-4">
-                <div className="text-center mb-4">
-                  <Sparkles className="w-12 h-12 text-purple-500 mx-auto mb-2" />
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    AI Session Video Suggestions (YouTube)
-                  </h3>
-                  <p className="text-gray-600 mt-1">
-                    {searchQuery
-                      ? `Showing YouTube video suggestions for "${searchQuery}".`
-                      : 'Type a topic in the search bar above (e.g., a module or concept) to get YouTube video suggestions.'}
-                  </p>
+              <div className="py-12 px-4 text-center">
+                <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Sparkles className="w-10 h-10 text-purple-600" />
                 </div>
-
-                {searchQuery && loadingVideos && (
-                  <div className="flex justify-center py-4">
-                    <Loader size="md" text="Finding YouTube videos..." />
-                  </div>
-                )}
-
-                {searchQuery && !loadingVideos && videoSuggestions.length > 0 && (
-                  <div className="mt-4 space-y-4">
-                    {videoSuggestions.map((v, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => window.open(v.videoUrl, '_blank')}
-                        className="w-full text-left border border-gray-200 rounded-lg px-4 py-3 hover:bg-gray-50 hover:border-primary-200 transition-colors cursor-pointer"
-                      >
-                        <p className="text-sm font-semibold text-primary-700 hover:underline">
-                          {v.title}
-                        </p>
-                        {v.description && (
-                          <p className="text-xs text-gray-600 mt-1 line-clamp-2">
-                            {v.description}
-                          </p>
-                        )}
-                        <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-gray-500">
-                          <span>{v.type || 'YouTube Video'}</span>
-                          <span>{v.platform || 'YouTube'}</span>
-                          {typeof v.relevance === 'number' && (
-                            <span>{v.relevance}% match</span>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {searchQuery && !loadingVideos && videoSuggestions.length === 0 && (
-                  <div className="mt-4 border-t border-gray-100 pt-4">
-                    <p className="text-sm text-gray-500">
-                      No YouTube suggestions found for "{searchQuery}".
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      Try changing the topic or using different keywords.
-                    </p>
-                  </div>
-                )}
+                <h3 className="text-xl font-bold text-gray-900 mb-3">
+                  AI Session Video Suggestions
+                </h3>
+                <p className="text-gray-600 max-w-md mx-auto mb-8">
+                  To be developed</p>
+                {/* <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">
+                  <Clock className="w-4 h-4" />
+                  Coming Soon
+                </div> */}
               </div>
             </Card>
           </div>
@@ -767,12 +648,21 @@ const StudentSessions = () => {
                         {formatDate(req.createdAt)}
                       </p>
                     </div>
-                    <Badge
-                      variant={req.messageStatus === 'seen' ? 'success' : 'default'}
-                      size="sm"
-                    >
-                      {req.messageStatus === 'seen' ? 'Message seen' : 'Delivered'}
-                    </Badge>
+                    <div className="flex flex-col items-end gap-2">
+                      <Badge
+                        variant={req.messageStatus === 'seen' ? 'success' : 'default'}
+                        size="sm"
+                      >
+                        {req.messageStatus === 'seen' ? 'Message seen' : 'Delivered'}
+                      </Badge>
+                      <button
+                        onClick={() => handleDeleteRequest(req._id)}
+                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Delete request"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </Card>
               ))}
@@ -833,7 +723,12 @@ const StudentSessions = () => {
             >
               Cancel
             </Button>
-            <Button onClick={submitRequestSession} loading={requestSessionLoading} icon={Send}>
+            <Button
+              type="submit"
+              form="session-request-form"
+              loading={requestSessionLoading}
+              icon={Send}
+            >
               Send to Admin
             </Button>
           </>
@@ -843,7 +738,7 @@ const StudentSessions = () => {
           <p className="text-gray-600 mb-4">
             Submit a request for a new session. The admin will review your request and may create a session announcement.
           </p>
-          
+
           {/* Show warning if no enrolled modules; year-based modules will still be used as fallback */}
           {enrolledModules.length === 0 && yearModules.length === 0 && (
             <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -852,8 +747,8 @@ const StudentSessions = () => {
               </p>
             </div>
           )}
-          
-          <div className="space-y-4">
+
+          <form id="session-request-form" onSubmit={submitRequestSession} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Topic / Subject <span className="text-red-500">*</span>
@@ -864,9 +759,10 @@ const StudentSessions = () => {
                 onChange={(e) => setRequestSessionForm({ ...requestSessionForm, topic: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm"
                 placeholder="e.g., Data Structures, MongoDB, React"
+                required
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Module <span className="text-gray-500">(optional)</span>
@@ -877,31 +773,23 @@ const StudentSessions = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm"
               >
                 <option value="">Select module (optional)</option>
-                {enrolledModules.length > 0
-                  ? enrolledModules.map((m) => (
-                      <option key={m.code} value={m.code}>
-                        {m.code} - {m.name}
-                      </option>
-                    ))
-                  : yearModules.length > 0
-                  ? yearModules.map((m) => (
-                      <option key={m.code} value={m.code}>
-                        {m.code} - {m.name}
-                      </option>
-                    ))
-                  : (
-                    <option value="" disabled>No modules found</option>
-                  )}
+                {modules.length > 0 ? (
+                  modules.map((m) => (
+                    <option key={m.code} value={m.code}>
+                      {m.code} - {m.name}
+                    </option>
+                  ))
+                ) : (
+                  <option value="" disabled>No modules found</option>
+                )}
               </select>
               <p className="text-xs text-gray-500 mt-1">
-                {enrolledModules.length > 0 
-                  ? `Showing your ${enrolledModules.length} enrolled modules`
-                  : yearModules.length > 0
-                  ? `Showing modules for Year ${user?.yearLevel || 1}`
-                  : 'Please add enrolled modules to your profile'}
+                {modules.length > 0
+                  ? `Showing all ${modules.length} available modules`
+                  : 'Loading modules...'}
               </p>
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Reason <span className="text-red-500">*</span>
@@ -912,9 +800,10 @@ const StudentSessions = () => {
                 rows={4}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none text-sm"
                 placeholder="Explain why you need this session..."
+                required
               />
             </div>
-            
+
             {/* My previous requests with delivery status */}
             {mySessionRequests.length > 0 && (
               <div className="pt-3 border-t border-gray-200">
@@ -939,7 +828,7 @@ const StudentSessions = () => {
                 </div>
               </div>
             )}
-          </div>
+          </form>
         </div>
       </Modal>
 
@@ -981,12 +870,11 @@ const StudentSessions = () => {
                     onClick={() => setRating(star)}
                     className="transition-transform hover:scale-110"
                   >
-                    <Star 
-                      className={`w-10 h-10 ${
-                        star <= rating 
-                          ? 'fill-yellow-400 text-yellow-400' 
-                          : 'text-gray-300'
-                      }`}
+                    <Star
+                      className={`w-10 h-10 ${star <= rating
+                        ? 'fill-yellow-400 text-yellow-400'
+                        : 'text-gray-300'
+                        }`}
                     />
                   </button>
                 ))}

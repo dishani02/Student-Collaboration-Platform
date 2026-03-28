@@ -14,9 +14,6 @@ function reviewerId(req) {
 // @access  Private
 exports.getResourceReviews = async (req, res) => {
   try {
-    console.log('=== GET RESOURCE REVIEWS DEBUG ===');
-    console.log('Resource ID:', req.params.resourceId);
-
     // NOTE: legacy fields `resourceId` / `type` are kept for backward compatibility.
     // New schema uses `reviewType` and `resource`.
     const reviews = await Review.find({
@@ -27,15 +24,12 @@ exports.getResourceReviews = async (req, res) => {
     })
       .populate('reviewer', 'name fullName email profilePicture role')
       .sort('-createdAt');
-
-    console.log(`Found ${reviews.length} reviews`);
-
+    
     res.json({
       success: true,
       reviews: reviews
     });
   } catch (error) {
-    console.error('Get reviews error:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching reviews',
@@ -148,7 +142,6 @@ exports.createResourceReview = async (req, res) => {
         message: 'You have already reviewed this resource'
       });
     }
-    console.error('Create review error:', error);
     res.status(500).json({
       success: false,
       message: 'Error creating review',
@@ -258,7 +251,6 @@ exports.createExpertReview = async (req, res) => {
         message: 'You have already reviewed this session'
       });
     }
-    console.error('Create expert review error:', error);
     res.status(500).json({
       success: false,
       message: 'Error creating expert review',
@@ -286,7 +278,6 @@ exports.getSessionExpertReviews = async (req, res) => {
       reviews
     });
   } catch (error) {
-    console.error('Get session expert reviews error:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching reviews',
@@ -315,7 +306,6 @@ exports.getExpertReviews = async (req, res) => {
       reviews
     });
   } catch (error) {
-    console.error('Get expert reviews error:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching reviews',

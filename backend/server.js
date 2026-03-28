@@ -15,6 +15,11 @@ connectDB();
 // CORS: allow configured frontend plus common Vite dev ports
 app.use(cors({
   origin: (origin, callback) => {
+    // In development mode, allow any origin (helps with mobile/network testing)
+    if (process.env.NODE_ENV === 'development') {
+      return callback(null, true);
+    }
+
     const defaultFrontend = 'http://localhost:5173';
     const envFrontend = process.env.FRONTEND_URL;
 
@@ -87,7 +92,7 @@ app.use('/api/session-requests', toBeImplemented);
 
 // Root route
 app.get('/', (req, res) => {
-  res.json({ 
+  res.json({
     success: true,
     message: 'P2P Academic Platform API',
     version: '1.0.0',
@@ -97,8 +102,8 @@ app.get('/', (req, res) => {
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    success: true, 
+  res.json({
+    success: true,
     message: 'P2P Platform API is running',
     database: mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected',
     timestamp: new Date().toISOString()
@@ -111,11 +116,11 @@ app.get('/api', (req, res) => {
     success: true,
     message: 'P2P Platform API Endpoints',
     activeRoutes: {
-      auth:      { login: 'POST /api/auth/login', me: 'GET /api/auth/me' },
-      users:     'GET /api/users/*',
+      auth: { login: 'POST /api/auth/login', me: 'GET /api/auth/me' },
+      users: 'GET /api/users/*',
       resources: 'GET/POST /api/resources/*',
-      modules:   'GET /api/modules/*',
-      ai:        'GET /api/ai/*'
+      modules: 'GET /api/modules/*',
+      ai: 'GET /api/ai/*'
     },
     placeholderRoutes: ['sessions', 'groups', 'posts', 'reviews', 'session-requests']
   });
@@ -123,7 +128,7 @@ app.get('/api', (req, res) => {
 
 // 404 handler
 app.use((req, res) => {
-  console.log('❌ 404 Not Found:', req.method, req.originalUrl);
+  console.log('404 Not Found:', req.method, req.originalUrl);
   res.status(404).json({
     success: false,
     message: `Route ${req.originalUrl} not found`,
@@ -133,11 +138,11 @@ app.use((req, res) => {
 
 // Global error handler
 app.use((err, req, res, next) => {
-  console.error('=== SERVER ERROR ===');
-  console.error('Error:', err.message);
-  console.error('Stack:', err.stack);
-  console.error('===================');
-  
+  console.error('Server Error:', err.message);
+  if (err.stack && process.env.NODE_ENV === 'development') {
+    console.error(err.stack);
+  }
+
   if (err.name === 'ValidationError') {
     const errors = Object.values(err.errors).map(e => e.message);
     return res.status(400).json({ success: false, message: 'Validation error', errors });
@@ -169,49 +174,29 @@ app.use((err, req, res, next) => {
 
 // Handle unhandled promise rejections (don't crash the server)
 process.on('unhandledRejection', (err) => {
-  console.error('=== UNHANDLED REJECTION ===', err.message);
+  console.error('Unhandled Rejection:', err.message);
 });
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
-  console.error('=== UNCAUGHT EXCEPTION ===', err.message);
+  console.error('Uncaught Exception:', err.message);
   process.exit(1);
 });
 
 const PORT = process.env.PORT || 5000;
 
 const server = app.listen(PORT, () => {
-  console.log('');
-  console.log('╔════════════════════════════════════════════════╗');
-  console.log('║   🎓 Student Collaboration Platform API        ║');
-  console.log('╚════════════════════════════════════════════════╝');
-  console.log('');
-  console.log('🚀 Server Status:    RUNNING');
-  console.log('📍 Port:            ', PORT);
-  console.log('🌍 Environment:     ', process.env.NODE_ENV || 'development');
-  console.log('💾 Database:        ', mongoose.connection.readyState === 1 ? '✅ Connected' : '⏳ Connecting...');
-  console.log('');
-  console.log('🔗 Active Routes:');
-  console.log('   → Auth:          /api/auth/*');
-  console.log('   → Users:         /api/users/*');
-  console.log('   → Resources:     /api/resources/*');
-  console.log('   → Modules:       /api/modules/*');
-  console.log('   → AI:            /api/ai/*');
-  console.log('');
-  console.log('⏳ Placeholder Routes (To Be Implemented):');
-  console.log('   → Sessions, Groups, Posts, Reviews');
-  console.log('');
-  console.log('💡 API Docs:  http://localhost:' + PORT + '/api');
-  console.log('💡 Health:    http://localhost:' + PORT + '/api/health');
-  console.log('');
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Database: ${mongoose.connection.readyState === 1 ? 'Connected' : 'Connecting...'}`);
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('👋 SIGTERM received: shutting down gracefully');
+  console.log('SIGTERM received: shutting down gracefully');
   server.close(() => {
     mongoose.connection.close(false, () => {
-      console.log('✅ Server and DB closed');
+      console.log('Server and DB closed');
       process.exit(0);
     });
   });

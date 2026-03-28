@@ -5,6 +5,7 @@ import Card from "../../components/common/Card";
 import Badge from "../../components/common/Badge";
 import Button from "../../components/common/Button";
 import Loader from "../../components/common/Loader";
+import ConfirmModal from "../../components/common/ConfirmModal";
 import API from "../../utils/api";
 import {
   Calendar,
@@ -18,6 +19,7 @@ import {
   XCircle as XCircleIcon,
   RefreshCw,
   FileText,
+  UserCheck,
 } from "lucide-react";
 import { formatDate } from "../../utils/helpers";
 import toast from "react-hot-toast";
@@ -29,6 +31,7 @@ const AdminSessionDetail = () => {
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
   const [actionLoading, setActionLoading] = useState(null);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
 
   const fetchSession = async (silent = false) => {
     try {
@@ -57,6 +60,7 @@ const AdminSessionDetail = () => {
       toast.error(error.response?.data?.message || "Failed to cancel session");
     } finally {
       setActionLoading(null);
+      setCancelModalOpen(false);
     }
   };
 
@@ -93,6 +97,32 @@ const AdminSessionDetail = () => {
         return "success";
       default:
         return "default";
+    }
+  };
+
+  const handleApproveExpert = async (requestId) => {
+    try {
+      setActionLoading(`approve-${requestId}`);
+      await API.post(`/sessions/${id}/requests/${requestId}/approve`);
+      toast.success('Expert approved successfully');
+      fetchSession();
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to approve expert');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleRejectExpert = async (requestId) => {
+    try {
+      setActionLoading(`reject-${requestId}`);
+      await API.post(`/sessions/${id}/requests/${requestId}/reject`);
+      toast.success('Expert rejected');
+      fetchSession();
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to reject expert');
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -251,7 +281,7 @@ const AdminSessionDetail = () => {
                       {session.requiredStudents || 0} students
                     </p>
                     <p className="text-gray-900">
-                      Required Experts: {session.requiredExperts || 0}
+                      Required Experts: {session.expert ? 1 : (session.pendingRequests?.filter(r => r.role === 'expert' && r.status === 'pending').length || 0)} / {session.requiredExperts || 1}
                     </p>
                     {session.expert && (
                       <Badge variant="success" size="sm" className="flex w-fit items-center gap-1">
@@ -263,6 +293,59 @@ const AdminSessionDetail = () => {
                 </div>
               </div>
             </Card>
+
+            {session.pendingRequests && session.pendingRequests.filter(r => r.role === 'expert').length > 0 && (
+              <Card>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <UserCheck className="w-5 h-5 text-primary-600" />
+                  Volunteer Experts
+                </h3>
+                <div className="space-y-4">
+                  {session.pendingRequests.filter(r => r.role === 'expert').map((req) => (
+                    <div key={req._id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-lg gap-4">
+                      <div>
+                        <p className="font-semibold text-gray-900">{req.user?.fullName}</p>
+                        <p className="text-sm text-gray-600">{req.user?.email}</p>
+                        <p className="text-xs text-gray-500 font-mono mt-1">ID: {req.user?._id}</p>
+                        {req.reason && (
+                          <div className="mt-2 bg-white p-2 rounded border border-gray-100">
+                            <span className="font-medium text-xs text-gray-500 uppercase tracking-wider block mb-1">Reason</span>
+                            <p className="text-sm text-gray-700">"{req.reason}"</p>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        {req.status === 'pending' ? (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              loading={actionLoading === `reject-${req._id}`}
+                              onClick={() => handleRejectExpert(req._id)}
+                            >
+                              Reject
+                            </Button>
+                            <Button
+                              size="sm"
+                              loading={actionLoading === `approve-${req._id}`}
+                              onClick={() => handleApproveExpert(req._id)}
+                            >
+                              Accept
+                            </Button>
+                          </>
+                        ) : req.status === 'approved' ? (
+                          <Badge variant="success">Accepted</Badge>
+                        ) : req.status === 'rejected' ? (
+                          <Badge variant="danger">Rejected</Badge>
+                        ) : (
+                          <Badge variant="default" className="capitalize">{req.status}</Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
           </div>
 
           <div>
@@ -282,7 +365,7 @@ const AdminSessionDetail = () => {
                     fullWidth
                     variant="danger"
                     icon={XCircleIcon}
-                    onClick={handleCancelSession}
+                    onClick={() => setCancelModalOpen(true)}
                     loading={actionLoading === "cancel"}
                   >
                     Cancel Session
@@ -308,6 +391,15 @@ const AdminSessionDetail = () => {
           </div>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={cancelModalOpen}
+        onClose={() => setCancelModalOpen(false)}
+        title="Cancel Session Announcement"
+        message="Are you sure you want to cancel this session announcement? This action cannot be undone."
+        confirmText="Cancel Announcement"
+        onConfirm={handleCancelSession}
+      />
     </DashboardLayout>
   );
 };

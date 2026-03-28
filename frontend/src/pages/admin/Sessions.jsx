@@ -47,6 +47,8 @@ const AdminSessions = () => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [requestToDelete, setRequestToDelete] = useState(null);
   const [actionLoading, setActionLoading] = useState(null);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [sessionToCancel, setSessionToCancel] = useState(null);
 
   useEffect(() => {
     fetchModules();
@@ -134,6 +136,22 @@ const AdminSessions = () => {
     }
   };
 
+  const handleCancelSession = async () => {
+    if (!sessionToCancel) return;
+    try {
+      setActionLoading(`cancel-${sessionToCancel._id}`);
+      await API.patch(`/sessions/${sessionToCancel._id}/cancel`);
+      toast.success("Announcement cancelled");
+      await fetchSessions(true);
+    } catch (e) {
+      toast.error("Failed to cancel");
+    } finally {
+      setCancelModalOpen(false);
+      setSessionToCancel(null);
+      setActionLoading(null);
+    }
+  };
+
   const handleMarkAsSeen = async (requestId) => {
     try {
       setActionLoading(`seen-${requestId}`);
@@ -147,18 +165,7 @@ const AdminSessions = () => {
     }
   };
 
-  const handleCancelAnnouncement = async (sessionId) => {
-    try {
-      setActionLoading(`cancel-${sessionId}`);
-      await API.patch(`/sessions/${sessionId}/cancel`);
-      toast.success("Announcement cancelled");
-      await fetchSessions(true);
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to cancel");
-    } finally {
-      setActionLoading(null);
-    }
-  };
+
 
   const clearFilters = () => {
     setSearchQuery("");
@@ -168,8 +175,8 @@ const AdminSessions = () => {
   const filteredSessions = useMemo(() => {
     let list = sessions[activeTab] || [];
 
-    if (activeTab === "session-request-history") {
-      return list;
+    if (activeTab === "session-request-history" || activeTab === "completed" || activeTab === "cancelled") {
+      return [];
     }
 
     if (searchQuery.trim()) {
@@ -208,13 +215,13 @@ const AdminSessions = () => {
       id: "completed",
       label: "Completed",
       icon: CheckCircle,
-      count: sessions.completed.length,
+      count: null,
     },
     {
       id: "cancelled",
       label: "Cancelled",
       icon: XCircle,
-      count: sessions.cancelled.length,
+      count: null,
     },
     {
       id: "session-request-history",
@@ -236,14 +243,14 @@ const AdminSessions = () => {
           </div>
 
           <div className="flex gap-3">
-            <Button
+            {/* <Button
               variant="outline"
               icon={RefreshCw}
               onClick={handleRefresh}
               disabled={loading}
             >
               Refresh
-            </Button>
+            </Button> */}
             <Button
               icon={Plus}
               onClick={() => navigate("/admin/sessions/create")}
@@ -282,9 +289,12 @@ const AdminSessions = () => {
               ))}
             </select>
 
-            <Button variant="outline" icon={FilterX} onClick={clearFilters}>
+            <button 
+              onClick={clearFilters}
+              className="px-4 py-2 text-sm text-gray-500 hover:text-gray-900 transition-colors"
+            >
               Clear Filters
-            </Button>
+            </button>
           </div>
 
           {activeTab !== "session-request-history" && (
@@ -303,23 +313,23 @@ const AdminSessions = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-3 font-medium transition-all ${
-                    activeTab === tab.id
+                  className={`flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-3 font-medium transition-all ${activeTab === tab.id
                       ? "border-primary-500 text-primary-600"
                       : "border-transparent text-gray-600 hover:text-gray-900"
-                  }`}
+                    }`}
                 >
                   <Icon className="h-5 w-5" />
                   <span>{tab.label}</span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs ${
-                      activeTab === tab.id
-                        ? "bg-primary-100 text-primary-700"
-                        : "bg-gray-100 text-gray-600"
-                    }`}
-                  >
-                    {tab.count}
-                  </span>
+                  {tab.count !== null && (
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs ${activeTab === tab.id
+                          ? "bg-primary-100 text-primary-700"
+                          : "bg-gray-100 text-gray-600"
+                        }`}
+                    >
+                      {tab.count}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -414,6 +424,8 @@ const AdminSessions = () => {
               ))}
             </div>
           )
+        ) : (activeTab === "completed" || activeTab === "cancelled") ? (
+          <div className="py-12"></div>
         ) : filteredSessions.length === 0 ? (
           <Card>
             <div className="py-12 text-center">
@@ -486,18 +498,20 @@ const AdminSessions = () => {
                     </Badge>
                   </div>
                 </div>
-
                 <p className="mb-4 line-clamp-2 text-sm text-gray-600">
                   {session.description}
                 </p>
 
                 <div className="mb-3 flex flex-wrap items-center gap-4 text-sm text-gray-600">
-                  <span className="flex items-center gap-1">
+                  <span className="flex items-center gap-1 font-medium" title="Required Students">
                     <Users className="h-4 w-4" />
                     {session.participants?.length || 0} /{" "}
                     {session.requiredStudents}
                   </span>
-
+                  <span className="flex items-center gap-1" title="Required Experts">
+                    <UserCheck className="w-4 h-4" />
+                    {session.expert ? 1 : (session.pendingRequests?.filter(r => r.role === 'expert' && r.status === 'pending').length || 0)} / {session.requiredExperts || 1}
+                  </span>
                   {session.expert && (
                     <Badge variant="success" size="sm">
                       <CheckCircle className="h-3 w-3" /> Expert assigned
@@ -547,7 +561,11 @@ const AdminSessions = () => {
                     <Button
                       size="sm"
                       variant="danger"
-                      onClick={() => handleCancelAnnouncement(session._id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSessionToCancel(session);
+                        setCancelModalOpen(true);
+                      }}
                       loading={actionLoading === `cancel-${session._id}`}
                     >
                       Cancel
@@ -570,6 +588,18 @@ const AdminSessions = () => {
         message="Are you sure you want to delete this session request? This action cannot be undone."
         confirmText="Delete"
         onConfirm={handleDeleteRequest}
+      />
+
+      <ConfirmModal
+        isOpen={cancelModalOpen}
+        onClose={() => {
+          setCancelModalOpen(false);
+          setSessionToCancel(null);
+        }}
+        title="Cancel Session Announcement"
+        message="Are you sure you want to cancel this session announcement? This action cannot be undone."
+        confirmText="Cancel Announcement"
+        onConfirm={handleCancelSession}
       />
     </DashboardLayout>
   );

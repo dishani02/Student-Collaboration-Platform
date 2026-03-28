@@ -28,7 +28,7 @@ dns.lookup = (hostname, options, callback) => {
 const connectDB = async () => {
   const uri = process.env.MONGODB_URI || process.env.MONGO_URI;
   if (!uri) {
-    console.error('❌ Missing MONGODB_URI in .env (see .env.example)');
+    console.error('Missing MONGODB_URI in .env (see .env.example)');
     process.exit(1);
   }
 
@@ -37,9 +37,9 @@ const connectDB = async () => {
       serverSelectionTimeoutMS: 15000,
       family: 4
     });
-    console.log('✅ MongoDB Connected: ' + conn.connection.host);
+    console.log('MongoDB Connected: ' + conn.connection.host);
   } catch (error) {
-    console.error('❌ Error: ' + error.message);
+    console.error('Database connection error: ' + error.message);
     const msg = String(error.message || '');
     if (
       msg.includes('whitelist') ||

@@ -7,9 +7,8 @@ const User = require('../models/User');
 // @access  Private
 exports.suggestResources = async (req, res) => {
   try {
-    console.log('=== AI SUGGEST RESOURCES DEBUG ===');
     const { query } = req.query;
-    
+
     if (!query || query.trim().length < 2) {
       return res.json({
         success: true,
@@ -17,11 +16,9 @@ exports.suggestResources = async (req, res) => {
       });
     }
 
-    console.log('Search query:', query);
-
     // Search for approved resources matching the query
     const searchRegex = new RegExp(query.split(' ').join('|'), 'i');
-    
+
     const matchingResources = await Resource.find({
       status: 'approved',
       $or: [
@@ -31,11 +28,9 @@ exports.suggestResources = async (req, res) => {
         { type: { $regex: searchRegex } }
       ]
     })
-    .populate('uploadedBy', 'name fullName')
-    .limit(20) // allow more matches to build suggestions
-    .sort({ downloads: -1, averageRating: -1, createdAt: -1 });
-
-    console.log(`Found ${matchingResources.length} matching resources`);
+      .populate('uploadedBy', 'name fullName')
+      .limit(20) // allow more matches to build suggestions
+      .sort({ downloads: -1, averageRating: -1, createdAt: -1 });
 
     // Generate suggestions with relevance scores
     const suggestions = matchingResources.map(resource => {
@@ -44,21 +39,21 @@ exports.suggestResources = async (req, res) => {
       const lowerQuery = query.toLowerCase();
       const lowerTitle = resource.title.toLowerCase();
       const lowerDesc = (resource.description || '').toLowerCase();
-      
+
       if (lowerTitle.includes(lowerQuery)) {
         relevance += 30;
       } else if (lowerTitle.split(' ').some(word => lowerQuery.includes(word) || word.includes(lowerQuery))) {
         relevance += 20;
       }
-      
+
       if (lowerDesc.includes(lowerQuery)) {
         relevance += 10;
       }
-      
+
       if (resource.moduleCode.toLowerCase().includes(lowerQuery)) {
         relevance += 15;
       }
-      
+
       if (resource.averageRating > 4) {
         relevance += 5;
       }
@@ -67,7 +62,7 @@ exports.suggestResources = async (req, res) => {
       } else if (resource.downloads > 10) {
         relevance += 3;
       }
-      
+
       relevance = Math.min(relevance, 100);
 
       const googleQuery = encodeURIComponent(`${resource.title} ${resource.moduleCode || ''}`.trim());
@@ -93,7 +88,7 @@ exports.suggestResources = async (req, res) => {
     // Add generic suggestions if we have few results
     if (suggestions.length < 5) {
       const keywords = query.toLowerCase().split(' ');
-      
+
       if (keywords.some(k => ['exam', 'test', 'quiz', 'paper', 'past'].includes(k))) {
         const q = encodeURIComponent(`past papers ${query}`);
         suggestions.push({
@@ -177,8 +172,6 @@ exports.suggestResources = async (req, res) => {
       );
     }
 
-    console.log(`Generated ${suggestions.length} suggestions`);
-
     // Ensure we always return up to 10 suggestions; if we have fewer,
     // pad with additional generic ideas so the UI has enough options.
     while (suggestions.length < 10) {
@@ -198,7 +191,6 @@ exports.suggestResources = async (req, res) => {
       suggestions: suggestions.slice(0, 10) // return up to 10 suggestions
     });
   } catch (error) {
-    console.error('AI suggestions error:', error);
     res.status(500).json({
       success: false,
       message: 'Error generating suggestions',
@@ -272,7 +264,6 @@ exports.recommendSessions = async (req, res) => {
       sessions: enriched.slice(0, 10)
     });
   } catch (error) {
-    console.error('recommendSessions error:', error);
     res.status(500).json({
       success: false,
       message: 'Error generating recommendations',
@@ -388,7 +379,6 @@ exports.suggestSessionVideos = async (req, res) => {
       suggestions
     });
   } catch (error) {
-    console.error('suggestSessionVideos error:', error);
     res.status(500).json({
       success: false,
       message: 'Error generating YouTube session suggestions',

@@ -291,15 +291,20 @@ const ExpertJoinedSessions = () => {
           </div>
         )}
       </div>
-
-      <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+      <p className="mb-4 line-clamp-2 text-sm text-gray-600">
         {session.description}
       </p>
 
-      <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
-        <Users className="w-4 h-4" />
-        {session.participants?.length || 0} /{" "}
-        {session.requiredStudents || session.maxParticipants || 25} students
+      <div className="mb-3 flex flex-wrap items-center gap-4 text-sm text-gray-600">
+        <span className="flex items-center gap-1" title="Required Students">
+          <Users className="h-4 w-4" />
+          {session.participants?.length || 0} /{" "}
+          {session.requiredStudents || session.maxParticipants || 25} students
+        </span>
+        <span className="flex items-center gap-1" title="Required Experts">
+          <UserCheck className="h-4 w-4" />
+          {session.expert ? 1 : (session.pendingRequests?.filter(r => r.role === 'expert' && r.status === 'pending').length || 0)} / {session.requiredExperts || 1} expert{session.requiredExperts > 1 ? 's' : ''}
+        </span>
       </div>
 
       {session.date && (

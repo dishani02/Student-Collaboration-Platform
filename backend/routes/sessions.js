@@ -34,7 +34,17 @@ router.get('/', async (req, res) => {
       .populate('participants', 'fullName email')
       .populate('expert', 'fullName email averageRating totalReviews gpa')
       .populate('createdBy', 'fullName email')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const uid = req.user._id || req.user.id;
+    const sessionIds = sessions.map(s => s._id);
+    const userReviews = await Review.find({
+      reviewer: uid,
+      session: { $in: sessionIds }
+    }).lean();
+    
+    const reviewedSessionIds = new Set(userReviews.map(r => r.session.toString()));
 
     // Shape data for frontend (student/admin/expert friendly)
     const shaped = sessions.map(s => ({
@@ -57,7 +67,8 @@ router.get('/', async (req, res) => {
       pendingRequests: s.pendingRequests,
       createdBy: s.createdBy,
       createdAt: s.createdAt,
-      updatedAt: s.updatedAt
+      updatedAt: s.updatedAt,
+      userRated: reviewedSessionIds.has(s._id.toString())
     }));
 
     res.json({ success: true, sessions: shaped });
