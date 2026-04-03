@@ -68,7 +68,6 @@ router.post('/register', [
       }
     });
   } catch (error) {
-    console.error('Registration error:', error);
     res.status(500).json({
       success: false,
       message: 'Registration failed',
@@ -164,7 +163,6 @@ router.post('/login', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Login error:', error);
     res.status(500).json({
       success: false,
       message: 'Login failed',
@@ -178,21 +176,15 @@ router.post('/login', async (req, res) => {
 // @access  Private
 router.get('/me', protect, async (req, res) => {
   try {
-    console.log('=== GET /auth/me ===');
-    console.log('User ID from token:', req.user.id);
-    
     const user = await User.findById(req.user.id).select('-password');
     
     if (!user) {
-      console.log('User not found');
       return res.status(404).json({
         success: false,
         message: 'User not found'
       });
     }
 
-    console.log('User found:', user.email);
-    
     // Calculate profile completion manually if needed
     const profileCompletion = user.profileCompletion || 0;
     
@@ -235,7 +227,6 @@ router.get('/me', protect, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('=== /auth/me ERROR ===');
     console.error(error);
     res.status(500).json({
       success: false,

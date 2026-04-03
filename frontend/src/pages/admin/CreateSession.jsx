@@ -140,23 +140,7 @@ const AdminCreateSession = () => {
             Back to Sessions
           </Button>
 
-          <div className="mb-8 rounded-2xl bg-gradient-to-r from-primary-600 to-indigo-600 p-6 text-white shadow-lg">
-            <div className="flex items-start gap-4">
-              <div className="rounded-xl bg-white/15 p-3 backdrop-blur-sm">
-                <CalendarDays size={28} />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold sm:text-3xl">
-                  Create Session Announcement
-                </h1>
-                <p className="mt-2 max-w-2xl text-sm text-white/90 sm:text-base">
-                  Create a new academic support session for students and
-                  experts. Fill in the details below to publish the
-                  announcement.
-                </p>
-              </div>
-            </div>
-          </div>
+
 
           <Card className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xl">
             <div className="border-b border-gray-100 bg-gray-50/70 px-6 py-5 sm:px-8">
@@ -307,15 +291,7 @@ const AdminCreateSession = () => {
                 </div>
 
                 <div className="flex flex-col-reverse gap-3 border-t border-gray-100 pt-6 sm:flex-row sm:justify-end">
-                  <Button
-                    variant="outline"
-                    type="button"
-                    onClick={handleReset}
-                    icon={RotateCcw}
-                    className="w-full sm:w-auto"
-                  >
-                    Reset Form
-                  </Button>
+
 
                   <Button
                     variant="outline"

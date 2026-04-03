@@ -33,33 +33,27 @@ const Help = () => {
   return (
     <div className="bg-[#f8f9fc] min-h-screen pb-20">
       {/* Header Search Section */}
-      <div className="bg-blue-100 py-24 text-center relative overflow-hidden border-b border-blue-200">
-        {/* Glow Effects */}
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-white rounded-full opacity-60 blur-[100px] pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-blue-200 rounded-full opacity-30 blur-[100px] pointer-events-none" />
-        
-        <div className="relative z-10">
-          <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 mb-6 tracking-tight">
-            How can we help you today?
-          </h1>
-          <p className="text-lg text-gray-600 max-w-xl mx-auto mb-10">
-            Search our knowledge base or browse the categories below to get started with PeerBridge.
-          </p>
-          <div className="max-w-2xl mx-auto px-4">
-            <div className="relative flex items-center bg-white rounded-2xl overflow-hidden border border-gray-200 focus-within:ring-2 focus-within:ring-primary-500 transition-all shadow-xl shadow-blue-900/5">
-              <div className="pl-6 pr-3 flex items-center">
-                <Search className="w-6 h-6 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                placeholder="Search for 'How to join a group', 'Expert badges'..."
-                className="w-full py-5 text-gray-900 bg-transparent outline-none placeholder-gray-400 text-lg font-medium"
-              />
-              <div className="pr-3 flex items-center">
-                <button className="bg-primary-600 hover:bg-primary-700 text-white px-8 py-3 rounded-xl font-bold transition-colors shadow-md shadow-primary-500/20">
-                  Search
-                </button>
-              </div>
+      <div className="bg-white border-b border-gray-100 py-20 text-center">
+        <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4 tracking-tight">
+          How can we help you today?
+        </h1>
+        <p className="text-gray-500 max-w-lg mx-auto mb-8">
+          Search our knowledge base or browse the categories below to get started with PeerBridge.
+        </p>
+        <div className="max-w-2xl mx-auto px-4">
+          <div className="relative flex items-center shadow-lg rounded-xl overflow-hidden border border-gray-200 focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-primary-500 transition-shadow">
+            <div className="pl-4 pr-2 bg-white flex items-center">
+              <Search className="w-5 h-5 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Search for 'How to join a group', 'Expert badges'..."
+              className="w-full py-4 text-gray-700 outline-none"
+            />
+            <div className="pr-2 bg-white">
+              <button className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-2 rounded-lg font-semibold transition-colors">
+                Search
+              </button>
             </div>
           </div>
         </div>
@@ -129,38 +123,32 @@ const Help = () => {
               <h2 className="text-2xl font-bold text-gray-900">Frequently Asked Questions</h2>
             </div>
             
-            <div className="space-y-6">
+            <div className="bg-white border border-gray-100 shadow-sm rounded-2xl overflow-hidden divide-y divide-gray-100">
               {faqs.map((faqGroup, gIdx) => (
-                <div key={gIdx} className="bg-white border border-gray-100 shadow-sm rounded-2xl overflow-hidden">
-                  <div className="bg-gray-50 border-b border-gray-100 px-6 py-4">
-                    <h4 className="text-sm font-bold text-primary-600 tracking-wider uppercase">
-                      {faqGroup.category}
-                    </h4>
-                  </div>
-                  <div className="divide-y divide-gray-100">
-                    {faqGroup.questions.map((item, qIdx) => {
-                      const idx = `${gIdx}-${qIdx}`;
-                      const isOpen = openFaq === idx;
-                      return (
-                        <div key={qIdx} className="transition-colors group">
-                          <button
-                            onClick={() => toggleFaq(idx)}
-                            className="w-full px-6 py-5 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
-                          >
-                            <span className="font-semibold text-gray-800 text-base">{item.q}</span>
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isOpen ? 'bg-primary-100' : 'bg-gray-100 group-hover:bg-primary-50'}`}>
-                              <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isOpen ? 'rotate-180 text-primary-600' : 'text-gray-500 group-hover:text-primary-500'}`} />
-                            </div>
-                          </button>
-                          {isOpen && (
-                            <div className="px-6 pb-6 pt-2 text-gray-600 text-base leading-relaxed animate-fade-in">
-                              {item.a}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+                <div key={gIdx} className="p-2">
+                  <h4 className="text-xs font-bold text-primary-500 tracking-wider uppercase px-4 pt-4 pb-2">
+                    {faqGroup.category}
+                  </h4>
+                  {faqGroup.questions.map((item, qIdx) => {
+                    const idx = `${gIdx}-${qIdx}`;
+                    const isOpen = openFaq === idx;
+                    return (
+                      <div key={qIdx} className="border-b border-gray-50 last:border-0">
+                        <button
+                          onClick={() => toggleFaq(idx)}
+                          className="w-full px-4 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
+                        >
+                          <span className="font-semibold text-gray-700 text-sm">{item.q}</span>
+                          <ChevronDown className={`w-4 h-4 text-gray-400 transform transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        {isOpen && (
+                          <div className="px-4 pb-4 text-gray-500 text-sm leading-relaxed">
+                            {item.a}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               ))}
             </div>

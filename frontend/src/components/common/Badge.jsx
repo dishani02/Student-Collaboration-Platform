@@ -9,7 +9,7 @@ const Badge = ({
   className = '',
 }) => {
   // Base styles
-  const baseStyles = 'inline-flex items-center font-medium transition-all';
+  const baseStyles = 'inline-flex items-center whitespace-nowrap font-medium transition-all';
 
   // Variant styles
   const variants = {
@@ -68,7 +68,7 @@ const Badge = ({
       )}
 
       {/* Text */}
-      <span>{children}</span>
+      <span className="flex items-center gap-1.5 whitespace-nowrap">{children}</span>
 
       {/* Remove button */}
       {removable && onRemove && (
