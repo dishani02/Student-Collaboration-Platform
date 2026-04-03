@@ -4,7 +4,8 @@ const { protect } = require('../middleware/auth');
 const {
   suggestResources,
   recommendSessions,
-  suggestSessionVideos
+  suggestSessionVideos,
+  generateQuiz
 } = require('../controllers/aiController');
 
 // All AI routes are protected
@@ -18,5 +19,9 @@ router.get('/recommend-sessions', recommendSessions);
 
 // GET /api/ai/suggest-session-videos?query=...
 router.get('/suggest-session-videos', suggestSessionVideos);
+
+// POST /api/ai/generate-quiz
+const upload = require('../middleware/upload');
+router.post('/generate-quiz', upload.single('file'), generateQuiz);
 
 module.exports = router;
