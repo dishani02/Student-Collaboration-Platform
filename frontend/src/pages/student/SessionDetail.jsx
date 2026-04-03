@@ -178,7 +178,7 @@ const SessionDetail = () => {
       return <Badge variant="success">You're Joined</Badge>;
     }
     if (hasPendingRequest()) {
-      return <Badge variant="warning">Requested</Badge>;
+      return <Badge variant="warning">Request Pending</Badge>;
     }
     return <Badge variant="info">Open for Registration</Badge>;
   };
@@ -226,10 +226,7 @@ const SessionDetail = () => {
         <Button 
           variant="ghost" 
           icon={ArrowLeft}
-          onClick={() => {
-            if (user?.role === 'expert') navigate('/expert/joined-sessions');
-            else navigate('/student/sessions');
-          }}
+          onClick={() => navigate('/student/sessions')}
           className="mb-6"
         >
           Back to Sessions
@@ -242,6 +239,12 @@ const SessionDetail = () => {
             <Card>
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
+                  {session.status === 'completed' && (
+                    <div className="mb-4 py-2 px-4 bg-gray-100 border border-gray-200 rounded-lg flex items-center gap-2 text-gray-700 font-medium animate-in fade-in slide-in-from-top-1 duration-500">
+                      <CheckCircle className="w-5 h-5 text-gray-500" />
+                      This session concluded on {session.completedAt ? formatDate(session.completedAt) : formatDate(session.date)}.
+                    </div>
+                  )}
                   <h1 className="text-2xl font-bold text-gray-900 mb-2">
                     {session.title}
                   </h1>
@@ -327,15 +330,16 @@ const SessionDetail = () => {
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm font-medium text-gray-700">
-                    Registration Progress
+                    {session.status === 'completed' ? 'Final Attendance' : 'Registration Progress'}
                   </span>
                   <span className="text-sm text-gray-600">
-                    {spotsLeft} {spotsLeft === 1 ? 'spot' : 'spots'} left
+                    {session.status === 'completed' ? `${session.participants?.length || 0} students attended` : `${spotsLeft} ${spotsLeft === 1 ? 'spot' : 'spots'} left`}
                   </span>
                 </div>
                 <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
                   <div 
                     className={`h-full rounded-full transition-all ${
+                      session.status === 'completed' ? 'bg-red-600' :
                       progressPercentage >= 90 ? 'bg-red-500' : 
                       progressPercentage >= 70 ? 'bg-yellow-500' : 
                       'bg-primary-500'
@@ -345,8 +349,8 @@ const SessionDetail = () => {
                 </div>
               </div>
 
-              {/* Meeting Link (if online and user joined) */}
-              {session.isOnline && session.meetingLink && isUserJoined() && (
+              {/* Meeting Link (if online and user joined and NOT completed) */}
+              {session.isOnline && session.meetingLink && isUserJoined() && session.status !== 'completed' && (
                 <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <div className="flex items-start gap-3">
                     <Video className="w-5 h-5 text-blue-600 mt-0.5" />
@@ -367,8 +371,7 @@ const SessionDetail = () => {
                 </div>
               )}
 
-              {/* Action Buttons */}
-              <div className="mt-6 pt-6 border-t border-gray-200 flex gap-3">
+              <div className="mt-6 pt-6 border-t border-gray-200 flex flex-col gap-3">
                 {canJoin() && (
                   <Button 
                     icon={Send}
@@ -398,7 +401,7 @@ const SessionDetail = () => {
                     disabled
                     fullWidth
                   >
-                    Requested
+                    Request Pending
                   </Button>
                 )}
 
@@ -407,9 +410,18 @@ const SessionDetail = () => {
                     icon={Star}
                     onClick={() => setShowRatingModal(true)}
                     fullWidth
+                    size="lg"
+                    className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg"
                   >
-                    Rate This Session
+                    Rate This Session ⭐
                   </Button>
+                )}
+
+                {isUserJoined() && session.status === 'completed' && session.userRated && (
+                   <div className="py-3 px-4 bg-green-50 border border-green-200 rounded-lg flex items-center justify-center gap-2 text-green-700 font-medium">
+                      <CheckCircle className="w-5 h-5" />
+                      Session Completed & Rated
+                   </div>
                 )}
               </div>
             </Card>
@@ -445,37 +457,35 @@ const SessionDetail = () => {
 
           {/* Right Sidebar */}
           <div className="space-y-6">
-            {/* Expert Info Card */}
+            {/* Expert Info Card (for non-completed sessions or as a simple card for completed) */}
             {session.expert && (
-              <Card>
+              <Card className={session.status === 'completed' ? 'border-primary-100 bg-primary-50/30' : ''}>
                 <h3 className="text-sm font-semibold text-gray-700 mb-4">Expert Tutor</h3>
                 
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-16 h-16 rounded-full bg-primary-100 flex items-center justify-center">
+                  <div className="w-14 h-14 rounded-full bg-primary-100 flex items-center justify-center border-2 border-white shadow-sm overflow-hidden text-primary-600 font-bold text-xl">
                     {session.expert.profilePicture ? (
                       <img 
                         src={session.expert.profilePicture} 
                         alt={session.expert.fullName}
-                        className="w-full h-full rounded-full object-cover"
+                        className="w-full h-full object-cover"
                       />
                     ) : (
-                      <span className="text-primary-600 font-bold text-xl">
-                        {session.expert.fullName?.charAt(0)}
-                      </span>
+                      session.expert.fullName?.charAt(0)
                     )}
                   </div>
                   <div className="flex-1">
-                    <h4 className="font-semibold text-gray-900">
+                    <h4 className="font-bold text-gray-900 leading-tight">
                       {session.expert.fullName}
                     </h4>
-                    <p className="text-sm text-gray-600">Expert Student</p>
+                    <p className="text-xs text-gray-600">Expert Student</p>
                     {session.expert.averageRating && (
-                      <div className="flex items-center gap-1 mt-1">
-                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                        <span className="text-sm font-medium">
+                      <div className="flex items-center gap-1 mt-1 text-xs">
+                        <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
+                        <span className="font-bold text-gray-700">
                           {session.expert.averageRating.toFixed(1)}
                         </span>
-                        <span className="text-xs text-gray-500">
+                        <span className="text-gray-400">
                           ({session.expert.totalReviews || 0} reviews)
                         </span>
                       </div>
@@ -483,55 +493,43 @@ const SessionDetail = () => {
                   </div>
                 </div>
 
-                {/* Expert Stats */}
+                {/* Expert Stats Cards */}
                 <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="bg-gray-50 rounded-lg p-3 text-center">
-                    <Award className="w-5 h-5 text-primary-600 mx-auto mb-1" />
-                    <p className="text-xs text-gray-600">Sessions</p>
-                    <p className="font-semibold text-gray-900">
+                  <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 text-center border border-primary-50 shadow-sm">
+                    < Award className="w-4 h-4 text-primary-600 mx-auto mb-1" />
+                    <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Sessions</p>
+                    <p className="text-lg font-bold text-gray-900">
                       {session.expert.sessionsConducted || 0}
                     </p>
                   </div>
-                  <div className="bg-gray-50 rounded-lg p-3 text-center">
-                    <TrendingUp className="w-5 h-5 text-primary-600 mx-auto mb-1" />
-                    <p className="text-xs text-gray-600">GPA</p>
-                    <p className="font-semibold text-gray-900">
+                  <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 text-center border border-primary-50 shadow-sm">
+                    <TrendingUp className="w-4 h-4 text-primary-600 mx-auto mb-1" />
+                    <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">GPA</p>
+                    <p className="text-lg font-bold text-gray-900">
                       {session.expert.gpa?.toFixed(2) || 'N/A'}
                     </p>
                   </div>
                 </div>
 
-                {/* Expert Bio */}
-                {session.expert.bio && (
-                  <div className="mb-4">
-                    <p className="text-sm text-gray-600 line-clamp-3">
-                      {session.expert.bio}
-                    </p>
-                  </div>
+                {session.status !== 'completed' && (
+                  <>
+                    {session.expert.bio && (
+                      <div className="mb-4">
+                        <p className="text-sm text-gray-600 line-clamp-2">
+                          {session.expert.bio}
+                        </p>
+                      </div>
+                    )}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      fullWidth
+                      onClick={() => navigate(`/expert/${session.expert._id}`)}
+                    >
+                      View Full Profile
+                    </Button>
+                  </>
                 )}
-
-                {/* Expertise Modules */}
-                {session.expert.expertiseModules && session.expert.expertiseModules.length > 0 && (
-                  <div className="mb-4">
-                    <p className="text-xs font-semibold text-gray-700 mb-2">Expertise in:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {session.expert.expertiseModules.slice(0, 3).map((module) => (
-                        <Badge key={module} variant="primary-outline" size="sm">
-                          {module}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  fullWidth
-                  onClick={() => navigate(`/expert/${session.expert._id}`)}
-                >
-                  View Full Profile
-                </Button>
               </Card>
             )}
 
@@ -669,23 +667,28 @@ const SessionDetail = () => {
           </>
         }
       >
-        <div>
-          <p className="text-gray-600 mb-4">
-            How was your session with {session.expert?.fullName}?
-          </p>
+        <div className="space-y-6">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <Star className="w-8 h-8 text-primary-600" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900">Expert Feedback</h3>
+            <p className="text-sm text-gray-600">
+              How was your learning experience with {session.expert?.fullName || 'the expert'}?
+            </p>
+          </div>
 
-          {/* Star Rating */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Rating <span className="text-red-500">*</span>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3 text-center">
+              Your overall rating
             </label>
-            <div className="flex gap-2">
+            <div className="flex justify-center gap-3">
               {[1, 2, 3, 4, 5].map((star) => (
                 <button
                   key={star}
                   type="button"
                   onClick={() => setRating(star)}
-                  className="transition-transform hover:scale-110"
+                  className="transition-all transform hover:scale-125 focus:outline-none"
                 >
                   <Star 
                     className={`w-10 h-10 ${
@@ -699,21 +702,21 @@ const SessionDetail = () => {
             </div>
           </div>
 
-          {/* Comment */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Comment (Optional)
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Share your feedback (Optional)
             </label>
             <textarea
               value={ratingComment}
               onChange={(e) => setRatingComment(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none transition-all"
+              placeholder="What did you learn? How can the expert improve?"
               rows={4}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
-              placeholder="Share your experience with this session..."
             />
           </div>
         </div>
       </Modal>
+
     </DashboardLayout>
   );
 };

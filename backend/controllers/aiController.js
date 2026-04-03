@@ -120,12 +120,12 @@ exports.suggestResources = async (req, res) => {
     // Padding for UI consistency
     while (suggestions.length < 8) {
       suggestions.push({
-        title: `Academic Resources for "${query}"`,
-        description: 'Explore additional papers, notes, and study guides from peers.',
+        title: `More study ideas for "${query}"`,
+        description: 'Look for extra notes, solved examples, and discussion videos.',
         type: 'General',
         relevance: 60 - suggestions.length,
         isGeneric: true,
-        externalUrl: `https://www.google.com/search?q=${encodeURIComponent(query + ' study material')}`
+        externalUrl: `https://www.google.com/search?q=${encodeURIComponent(query)}`
       });
     }
 
@@ -154,9 +154,9 @@ exports.recommendSessions = async (req, res) => {
     // Get user's enrolled modules for personalization
     const user = await User.findById(userId).select('enrolledModules expertiseModules masteredModules');
     const userModules = [
-      ...(user?.enrolledModules || []),
-      ...(user?.expertiseModules || []),
-      ...(user?.masteredModules || [])
+      ...((user && user.enrolledModules) || []),
+      ...((user && user.expertiseModules) || []),
+      ...((user && user.masteredModules) || [])
     ].filter(Boolean);
 
     // Fetch real session announcements (status requested) - same as Announcements tab
