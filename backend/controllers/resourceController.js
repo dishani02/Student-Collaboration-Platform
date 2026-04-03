@@ -8,11 +8,6 @@ const User = require('../models/User');
 // @access  Private (Students, Experts)
 exports.uploadResource = async (req, res) => {
   try {
-    console.log('=== UPLOAD RESOURCE DEBUG ===');
-    console.log('User:', req.user ? req.user.id : 'No user');
-    console.log('Body:', req.body);
-    console.log('File:', req.file);
-
     if (!req.user) {
       return res.status(401).json({
         success: false,
@@ -60,14 +55,10 @@ exports.uploadResource = async (req, res) => {
       }
     };
 
-    console.log('Resource data to save:', resourceData);
-
     const resource = await Resource.create(resourceData);
     
     await resource.populate('uploadedBy', 'name email profilePicture role fullName');
     
-    console.log('Resource created successfully:', resource._id);
-
     const formattedResource = {
       _id: resource._id,
       title: resource.title,
@@ -93,9 +84,6 @@ exports.uploadResource = async (req, res) => {
       resource: formattedResource
     });
   } catch (error) {
-    console.error('=== UPLOAD RESOURCE ERROR ===');
-    console.error('Error:', error);
-    
     if (error.name === 'ValidationError') {
       return res.status(400).json({
         success: false,
@@ -127,11 +115,6 @@ exports.uploadResource = async (req, res) => {
 // @access  Private
 exports.getResources = async (req, res) => {
   try {
-    console.log('=== GET RESOURCES DEBUG ===');
-    console.log('User:', req.user ? req.user.id : 'No user');
-    console.log('User Role:', req.user?.role);
-    console.log('Query:', req.query);
-    
     const { module, type, sort, uploader, search, status } = req.query;
     
     let query = {};
@@ -150,11 +133,9 @@ exports.getResources = async (req, res) => {
     if (uploader) {
       // "My Uploads" tab or explicit uploader filter - show all statuses for that user
       query.uploadedBy = uploader;
-      console.log('📤 Filtering by uploader:', uploader);
     } else if (status) {
       // Any explicit status filter (admin or other views)
       query.status = status;
-      console.log('🔎 Filtering by status:', status);
     } else {
       // Default behaviour:
       // - Admins see all resources
@@ -162,12 +143,6 @@ exports.getResources = async (req, res) => {
       if (req.user.role !== 'admin') {
         query.status = 'approved';
       }
-      console.log(
-        '✨ Default resource query for role:',
-        req.user.role,
-        '->',
-        query.status ? `status=${query.status}` : 'no status filter'
-      );
     }
     
     // Search filter
@@ -178,8 +153,6 @@ exports.getResources = async (req, res) => {
         { moduleCode: { $regex: search, $options: 'i' } }
       ];
     }
-    
-    console.log('Final MongoDB Query:', JSON.stringify(query, null, 2));
     
     // Sort options
     let sortOption = { createdAt: -1 };
@@ -194,8 +167,6 @@ exports.getResources = async (req, res) => {
     const resources = await Resource.find(query)
       .populate('uploadedBy', 'name email profilePicture role fullName yearLevel specialization')
       .sort(sortOption);
-    
-    console.log(`✅ Found ${resources.length} resources`);
     
     const formattedResources = resources.map(resource => ({
       _id: resource._id,
@@ -224,9 +195,6 @@ exports.getResources = async (req, res) => {
       resources: formattedResources
     });
   } catch (error) {
-    console.error('=== GET RESOURCES ERROR ===');
-    console.error('Error:', error);
-    
     res.status(500).json({
       success: false,
       message: 'Error fetching resources',
@@ -241,10 +209,6 @@ exports.getResources = async (req, res) => {
 // @access  Private
 exports.getResourceById = async (req, res) => {
   try {
-    console.log('=== GET RESOURCE BY ID DEBUG ===');
-    console.log('Resource ID:', req.params.id);
-    console.log('User:', req.user ? req.user.id : 'No user');
-
     if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
       return res.status(400).json({
         success: false,
@@ -315,9 +279,6 @@ exports.getResourceById = async (req, res) => {
       resource: formattedResource
     });
   } catch (error) {
-    console.error('=== GET RESOURCE ERROR ===');
-    console.error('Error:', error);
-    
     res.status(500).json({
       success: false,
       message: 'Error fetching resource',
@@ -331,9 +292,6 @@ exports.getResourceById = async (req, res) => {
 // @access  Private (Owner or Admin)
 exports.updateResource = async (req, res) => {
   try {
-    console.log('=== UPDATE RESOURCE DEBUG ===');
-    console.log('Resource ID:', req.params.id);
-
     let resource = await Resource.findById(req.params.id);
     
     if (!resource) {
@@ -381,7 +339,6 @@ exports.updateResource = async (req, res) => {
       resource: formattedResource
     });
   } catch (error) {
-    console.error('Update resource error:', error);
     res.status(500).json({
       success: false,
       message: 'Error updating resource',
@@ -395,10 +352,6 @@ exports.updateResource = async (req, res) => {
 // @access  Private (Owner or Admin)
 exports.deleteResource = async (req, res) => {
   try {
-    console.log('=== DELETE RESOURCE DEBUG ===');
-    console.log('Resource ID:', req.params.id);
-    console.log('User:', req.user.id);
-
     const resource = await Resource.findById(req.params.id);
     
     if (!resource) {
@@ -423,7 +376,6 @@ exports.deleteResource = async (req, res) => {
       message: 'Resource deleted successfully'
     });
   } catch (error) {
-    console.error('Delete resource error:', error);
     res.status(500).json({
       success: false,
       message: 'Error deleting resource',
@@ -437,10 +389,6 @@ exports.deleteResource = async (req, res) => {
 // @access  Private
 exports.downloadResource = async (req, res) => {
   try {
-    console.log('=== DOWNLOAD RESOURCE DEBUG ===');
-    console.log('Resource ID:', req.params.id);
-    console.log('User ID:', req.user.id);
-
     const resource = await Resource.findById(req.params.id);
     
     if (!resource) {
@@ -480,10 +428,6 @@ exports.downloadResource = async (req, res) => {
     
     await resource.save();
     
-    console.log('Download tracked successfully');
-    console.log('File URL:', resource.fileUrl);
-    console.log('File Name:', resource.fileName);
-    
     // Send the file as an attachment
     const path = require('path');
     // Remove leading slash to prevent absolute path resolution issues on Windows
@@ -492,7 +436,6 @@ exports.downloadResource = async (req, res) => {
     res.download(filePath, resource.fileName || 'download-file');
     
   } catch (error) {
-    console.error('Download resource error:', error);
     res.status(500).json({
       success: false,
       message: 'Error downloading resource',
@@ -535,7 +478,6 @@ exports.viewResource = async (req, res) => {
     res.setHeader('Content-Disposition', `inline; filename="${resource.fileName}"`);
     res.sendFile(filePath);
   } catch (error) {
-    console.error('View resource error:', error);
     res.status(500).send('Error viewing resource');
   }
 };
@@ -545,9 +487,6 @@ exports.viewResource = async (req, res) => {
 // @access  Private
 exports.getMyDownloads = async (req, res) => {
   try {
-    console.log('=== GET MY DOWNLOADS DEBUG ===');
-    console.log('User:', req.user.id);
-
     // Find all resources where user is in downloadedBy array
     const resources = await Resource.find({
       'downloadedBy.user': req.user.id,
@@ -555,9 +494,7 @@ exports.getMyDownloads = async (req, res) => {
     })
     .populate('uploadedBy', 'name email profilePicture role fullName')
     .sort({ 'downloadedBy.downloadedAt': -1 });
-
-    console.log(`Found ${resources.length} downloaded resources`);
-
+    
     const formattedResources = resources.map(resource => {
       // Find when this user downloaded it
       const downloadRecord = resource.downloadedBy.find(
@@ -592,7 +529,6 @@ exports.getMyDownloads = async (req, res) => {
       resources: formattedResources
     });
   } catch (error) {
-    console.error('Get downloads error:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching downloads',
@@ -606,9 +542,6 @@ exports.getMyDownloads = async (req, res) => {
 // @access  Private (Admin)
 exports.approveResource = async (req, res) => {
   try {
-    console.log('=== APPROVE RESOURCE DEBUG ===');
-    console.log('Resource ID:', req.params.id);
-
     const resource = await Resource.findById(req.params.id);
     
     if (!resource) {
@@ -643,7 +576,6 @@ exports.approveResource = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Approve resource error:', error);
     res.status(500).json({
       success: false,
       message: 'Error approving resource',
@@ -657,9 +589,6 @@ exports.approveResource = async (req, res) => {
 // @access  Private (Admin)
 exports.rejectResource = async (req, res) => {
   try {
-    console.log('=== REJECT RESOURCE DEBUG ===');
-    console.log('Resource ID:', req.params.id);
-
     const { reason } = req.body;
 
     if (!reason || !reason.trim()) {
@@ -704,7 +633,6 @@ exports.rejectResource = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Reject resource error:', error);
     res.status(500).json({
       success: false,
       message: 'Error rejecting resource',

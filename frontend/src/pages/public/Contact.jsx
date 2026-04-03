@@ -39,39 +39,39 @@ const Contact = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 bg-white rounded-[2rem] shadow-xl overflow-hidden border border-gray-100">
           
           {/* Contact Information (Left side) */}
-          <div className="lg:col-span-4 bg-blue-100 border-r border-blue-200 p-10 text-gray-900 relative overflow-hidden flex flex-col justify-between">
+          <div className="lg:col-span-4 bg-[#0b1120] p-10 text-white relative overflow-hidden flex flex-col justify-between">
             {/* Decorative background shapes */}
-            <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-white opacity-60 blur-3xl" />
-            <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-64 h-64 rounded-full bg-blue-200 opacity-30 blur-3xl" />
+            <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-primary-600 opacity-20 blur-3xl" />
+            <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-64 h-64 rounded-full bg-blue-500 opacity-20 blur-3xl" />
             
             <div className="relative z-10">
               <h2 className="text-2xl font-bold mb-8">Contact Information</h2>
-              <p className="text-gray-600 mb-12">
+              <p className="text-gray-400 mb-12">
                 Fill out the form and our team will get back to you within 24 hours.
               </p>
 
               <div className="space-y-8">
                 <div className="flex items-start gap-4">
-                  <Phone className="w-6 h-6 text-primary-600 mt-1" />
+                  <Phone className="w-6 h-6 text-primary-400 mt-1" />
                   <div>
                     <h4 className="font-semibold mb-1">Phone Response</h4>
-                    <p className="text-gray-600 text-sm hover:text-primary-600 cursor-pointer transition-colors">+1 (555) 123-4567</p>
+                    <p className="text-gray-400 text-sm hover:text-white cursor-pointer transition-colors">+1 (555) 123-4567</p>
                   </div>
                 </div>
                 
                 <div className="flex items-start gap-4">
-                  <Mail className="w-6 h-6 text-primary-600 mt-1" />
+                  <Mail className="w-6 h-6 text-primary-400 mt-1" />
                   <div>
                     <h4 className="font-semibold mb-1">General Support</h4>
-                    <p className="text-gray-600 text-sm hover:text-primary-600 cursor-pointer transition-colors">support@peerbridge.test</p>
+                    <p className="text-gray-400 text-sm hover:text-white cursor-pointer transition-colors">support@peerbridge.test</p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-4">
-                  <MapPin className="w-6 h-6 text-primary-600 mt-1" />
+                  <MapPin className="w-6 h-6 text-primary-400 mt-1" />
                   <div>
                     <h4 className="font-semibold mb-1">Headquarters</h4>
-                    <p className="text-gray-600 text-sm leading-relaxed">
+                    <p className="text-gray-400 text-sm leading-relaxed">
                       University Tech Hub<br />
                       Innovation Suite 402<br />
                       Boston, MA 02110

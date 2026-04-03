@@ -6,14 +6,9 @@ const { MODULES_DATA } = require('../utils/seedModules');
 // @access  Private
 exports.getModules = async (req, res) => {
   try {
-    console.log('=== GET MODULES DEBUG ===');
-    
     const modules = await Module.find().sort('code');
     
-    console.log(`Found ${modules.length} modules`);
-    
     if (modules.length === 0) {
-      console.log('No modules found in database, falling back to static MODULES_DATA');
       return res.json({
         success: true,
         modules: MODULES_DATA
@@ -25,7 +20,6 @@ exports.getModules = async (req, res) => {
       modules: modules
     });
   } catch (error) {
-    console.error('Get modules error:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching modules',
@@ -53,7 +47,6 @@ exports.getModuleByCode = async (req, res) => {
       module
     });
   } catch (error) {
-    console.error('Get module error:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching module',
@@ -79,7 +72,6 @@ exports.getModulesByYearAndSemester = async (req, res) => {
       modules
     });
   } catch (error) {
-    console.error('Get modules by year/semester error:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching modules',
@@ -110,7 +102,6 @@ exports.getModulesByYear = async (req, res) => {
 
     res.json({ success: true, modules });
   } catch (error) {
-    console.error('Get modules by year error:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching modules',
@@ -141,7 +132,6 @@ exports.getModulesBySpecialization = async (req, res) => {
       modules
     });
   } catch (error) {
-    console.error('Get modules by specialization error:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching modules',
