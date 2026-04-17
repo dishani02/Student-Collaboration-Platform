@@ -328,40 +328,95 @@ const AdminResourceDetail = () => {
           </div>
         </div>
 
-        {resource.status === "pending" && isAdmin && (
+        {(resource.status === "pending" || resource.pendingUpdate?.status === "pending") && isAdmin && (
           <Card className="mb-4 border-yellow-200 bg-yellow-50">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <Clock className="h-6 w-6 text-yellow-600" />
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <Clock className="h-6 w-6 text-yellow-600 mt-1" />
                 <div>
                   <h3 className="font-semibold text-yellow-900">
-                    Pending Review
+                    {resource.pendingUpdate?.status === "pending" ? "Pending Update Review" : "Pending New Resource Approval"}
                   </h3>
                   <p className="text-sm text-yellow-700">
-                    This resource is waiting for review. Please approve or
-                    reject it.
+                    {resource.pendingUpdate?.status === "pending" 
+                      ? "The resource owner has requested an update. Please review the changes below."
+                      : "This resource is waiting for review. Please approve or reject it."}
                   </p>
                 </div>
               </div>
               <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    icon={CheckCircle}
-                    onClick={() => setShowApproveModal(true)}
-                    className="border-green-200 text-green-600 hover:bg-green-50 hover:border-green-300"
-                    disabled={actionLoading}
-                  >
-                    Accept
-                  </Button>
+                <Button
+                  variant="outline"
+                  icon={CheckCircle}
+                  onClick={() => setShowApproveModal(true)}
+                  className="border-green-200 text-green-600 hover:bg-green-50 hover:border-green-300 bg-white"
+                  disabled={actionLoading}
+                >
+                  Accept
+                </Button>
                 <Button
                   icon={XCircle}
                   variant="outline"
                   onClick={() => setShowRejectModal(true)}
-                  className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+                  className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 bg-white"
                   disabled={actionLoading}
                 >
                   Reject
                 </Button>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Display Pending Update details if applicable */}
+        {resource.pendingUpdate?.status === "pending" && isAdmin && (
+          <Card className="mb-4 border-blue-200 bg-blue-50">
+            <h3 className="mb-4 font-bold text-blue-900 flex items-center gap-2">
+              <AlertCircle className="w-5 h-5" />
+              Proposed Changes
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Original</h4>
+                <div className="bg-white p-4 rounded-lg border border-gray-200 space-y-3">
+                  <div>
+                    <span className="text-xs text-gray-500 block">Title</span>
+                    <p className="text-sm font-medium">{resource.title}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500 block">Description</span>
+                    <p className="text-sm">{resource.description || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500 block">Module Code</span>
+                    <p className="text-sm">{resource.moduleCode}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-gray-500 block">Type</span>
+                    <p className="text-sm">{resource.resourceType || resource.type || 'N/A'}</p>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-blue-500 mb-2">Proposed Update</h4>
+                <div className="bg-white p-4 rounded-lg border border-blue-200 space-y-3 relative">
+                  <div>
+                    <span className="text-xs text-blue-500 block">Title</span>
+                    <p className="text-sm font-medium text-blue-900">{resource.pendingUpdate.title}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-blue-500 block">Description</span>
+                    <p className="text-sm text-blue-900">{resource.pendingUpdate.description || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-blue-500 block">Module Code</span>
+                    <p className="text-sm text-blue-900">{resource.pendingUpdate.moduleCode}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-blue-500 block">Type</span>
+                    <p className="text-sm text-blue-900">{resource.pendingUpdate.type || 'N/A'}</p>
+                  </div>
+                </div>
               </div>
             </div>
           </Card>
@@ -513,7 +568,7 @@ const AdminResourceDetail = () => {
                     }}
                     className="flex-1 min-w-[140px] !rounded-xl border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300 font-semibold py-3.5 text-sm justify-center shadow-sm"
                   >
-                    View
+                    Review Content
                   </Button>
 
                   {isAdmin && resource.status === "pending" && (

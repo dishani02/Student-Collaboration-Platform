@@ -409,7 +409,10 @@ const ExpertJoinedSessions = () => {
       <div className="p-8">
         <div className="flex items-start justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Sessions</h1>
+            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+              <Calendar className="w-8 h-8 text-primary-500" />
+              Sessions
+            </h1>
             <p className="text-gray-600 mt-1">
               Browse announcements, join as student or conductor, and view your
               session history

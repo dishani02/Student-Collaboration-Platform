@@ -123,8 +123,8 @@ const AdminResources = () => {
       setResources(all);
       setStats({
         total: all.length,
-        pending: all.filter((r) => r.status === "pending").length,
-        approved: all.filter((r) => r.status === "approved").length,
+        pending: all.filter((r) => r.status === "pending" || r.pendingUpdate?.status === "pending").length,
+        approved: all.filter((r) => r.status === "approved" && r.pendingUpdate?.status !== "pending").length,
         rejected: all.filter((r) => r.status === "rejected").length,
       });
     } catch (error) {
@@ -293,13 +293,16 @@ const AdminResources = () => {
     return <File className="h-6 w-6 text-gray-500" />;
   };
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (resource) => {
+    if (resource.status === "approved" && resource.pendingUpdate?.status === "pending") {
+      return <Badge variant="warning">UPDATE PENDING</Badge>;
+    }
     const variants = {
       pending: "warning",
       approved: "success",
       rejected: "danger",
     };
-    return <Badge variant={variants[status] || "default"}>{status}</Badge>;
+    return <Badge variant={variants[resource.status] || "default"}>{resource.status}</Badge>;
   };
 
   const filteredResources = useMemo(() => {
@@ -336,8 +339,11 @@ const AdminResources = () => {
       <div className="p-8">
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Resource Management</h1>
-            <p className="mt-1 text-gray-600">Review and approve uploaded resources</p>
+            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+              <FileText className="w-8 h-8 text-primary-500" />
+              Resource Management
+            </h1>
+            <p className="mt-2 text-gray-600">Review and approve uploaded resources</p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -360,63 +366,9 @@ const AdminResources = () => {
           </div>
         </div>
 
-        <div className="mb-6 grid grid-cols-1 gap-6 md:grid-cols-4">
-          <Card
-            className="cursor-pointer transition-shadow hover:shadow-md"
-            onClick={() => setSelectedStatus("")}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="mb-1 text-sm text-gray-600">Total Resources</p>
-                <h3 className="text-3xl font-bold text-gray-900">{stats.total}</h3>
-              </div>
-              <FileText className="h-10 w-10 text-gray-400" />
-            </div>
-          </Card>
-
-          <Card
-            className="cursor-pointer border-yellow-200 bg-yellow-50 transition-shadow hover:shadow-md"
-            onClick={() => setSelectedStatus("pending")}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="mb-1 text-sm text-gray-700">Pending</p>
-                <h3 className="text-3xl font-bold text-gray-900">{stats.pending}</h3>
-              </div>
-              <Clock className="h-10 w-10 text-yellow-600" />
-            </div>
-          </Card>
-
-          <Card
-            className="cursor-pointer border-green-200 bg-green-50 transition-shadow hover:shadow-md"
-            onClick={() => setSelectedStatus("approved")}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="mb-1 text-sm text-gray-700">Approved</p>
-                <h3 className="text-3xl font-bold text-gray-900">{stats.approved}</h3>
-              </div>
-              <CheckCircle className="h-10 w-10 text-green-600" />
-            </div>
-          </Card>
-
-          <Card
-            className="cursor-pointer border-red-200 bg-red-50 transition-shadow hover:shadow-md"
-            onClick={() => setSelectedStatus("rejected")}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="mb-1 text-sm text-gray-700">Rejected</p>
-                <h3 className="text-3xl font-bold text-gray-900">{stats.rejected}</h3>
-              </div>
-              <XCircle className="h-10 w-10 text-red-600" />
-            </div>
-          </Card>
-        </div>
-
         <Card className="mb-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-            <div className="relative flex-1">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <div className="relative md:col-span-2">
               <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
@@ -427,29 +379,66 @@ const AdminResources = () => {
               />
             </div>
 
-            <Select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              options={statusOptions}
-              className="w-full lg:w-48"
-            />
-
-            <Select
+            <select
               value={selectedModule}
               onChange={(e) => setSelectedModule(e.target.value)}
-              options={moduleOptions}
-              className="w-full lg:w-56"
-            />
+              className="rounded-lg border border-gray-300 px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary-500"
+              disabled={modulesLoading}
+            >
+              <option value="">
+                {modulesLoading ? "Loading modules..." : "All Modules"}
+              </option>
+              {modules.map((m) => (
+                <option key={m.code} value={m.code}>
+                  {m.code}
+                </option>
+              ))}
+            </select>
 
-            <Button variant="outline" onClick={clearFilters}>
-              Clear Filters
-            </Button>
           </div>
 
-          <div className="mt-4 text-sm text-gray-500">
+          <p className="mt-4 text-sm text-gray-500">
             Showing {filteredResources.length} of {resources.length} resources
-          </div>
+          </p>
         </Card>
+
+        <div className="mb-6 border-b border-gray-200">
+          <div className="flex gap-2 overflow-x-auto">
+            {[
+              { id: "", label: "All Resources", icon: FileText, count: stats.total },
+              { id: "pending", label: "Pending", icon: Clock, count: stats.pending },
+              { id: "approved", label: "Approved", icon: CheckCircle, count: stats.approved },
+              { id: "rejected", label: "Rejected", icon: XCircle, count: stats.rejected }
+            ].map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setSelectedStatus(tab.id)}
+                  className={`flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-3 font-medium transition-all ${
+                    selectedStatus === tab.id
+                      ? "border-primary-500 text-primary-600"
+                      : "border-transparent text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  <Icon className="h-5 w-5" />
+                  <span>{tab.label}</span>
+                  {tab.count !== null && (
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs ${
+                        selectedStatus === tab.id
+                          ? "bg-primary-100 text-primary-700"
+                          : "bg-gray-100 text-gray-600"
+                      }`}
+                    >
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         {loading ? (
           <div className="flex justify-center py-12">
@@ -473,133 +462,78 @@ const AdminResources = () => {
             </div>
           </Card>
         ) : (
-          <Card padding="none">
-            <div className="overflow-x-auto rounded-xl">
-              <table className="w-full whitespace-nowrap">
-                <thead>
-                  <tr className="bg-gray-50/50 border-b border-gray-100 text-left">
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-gray-400">
-                      Resource
-                    </th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-gray-400">
-                      Uploader
-                    </th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-gray-400">
-                      Type
-                    </th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-gray-400">
-                      Uploaded
-                    </th>
-                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-widest text-gray-400">
-                      Status
-                    </th>
-                    <th className="px-6 py-4 text-right text-xs font-bold uppercase tracking-widest text-gray-400">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
+            {filteredResources.map((resource) => {
+              const typeClass = 'bg-gray-100 text-gray-700 border-gray-200';
 
-                <tbody className="divide-y divide-gray-50 bg-white">
-                  {filteredResources.map((resource) => {
-                    // Type-based colors
-                    const typeColors = {
-                      'Lecture Notes': 'bg-blue-50 text-blue-900',
-                      'Assignments':   'bg-green-50 text-green-900',
-                      'Past Papers':   'bg-red-50 text-red-900',
-                      'Textbooks':     'bg-purple-50 text-purple-900',
-                      'Study Guides':  'bg-amber-50 text-amber-900',
-                      'Other':         'bg-slate-50 text-slate-900'
-                    };
-                    const typeClass = typeColors[resource.resourceType] || 'bg-slate-50 text-slate-900';
+              return (
+                <Card
+                  key={resource._id}
+                  hover
+                  className="cursor-pointer flex flex-col h-full"
+                  onClick={() => handleView(resource)}
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3 w-full">
+                      <div className="flex-shrink-0 w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center border border-gray-100">
+                        {getFileIcon(resource.fileType)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg font-bold text-gray-900 truncate" title={resource.title}>
+                          {resource.title}
+                        </h3>
+                        <p className="text-xs font-medium text-gray-500 mt-0.5">
+                          {resource.moduleCode} • {formatDate(resource.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
 
-                    return (
-                    <tr key={resource._id} className="hover:bg-blue-50/30 transition-colors group">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-4">
-                          <div className="flex-shrink-0 w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center border border-gray-100">
-                            {getFileIcon(resource.fileType)}
-                          </div>
-                          <div>
-                            <p className="font-extrabold text-gray-900 text-sm">{resource.title}</p>
-                            {resource.description && (
-                              <p className="line-clamp-1 text-xs font-medium text-gray-400 mt-0.5 max-w-[200px]">
-                                {resource.description}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </td>
+                  <div className="mb-4">
+                    {resource.description ? (
+                      <p className="text-sm text-gray-600 line-clamp-2 min-h-[40px]">
+                        {resource.description}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-gray-400 italic min-h-[40px]">
+                        No description provided.
+                      </p>
+                    )}
+                  </div>
 
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 border border-white shadow-sm">
-                            <span className="text-sm font-black text-blue-600">
-                              {resource.uploader?.fullName?.charAt(0) || "U"}
-                            </span>
-                          </div>
-                          <span className="text-sm font-bold text-gray-700">
-                            {resource.uploader?.fullName || "Unknown"}
-                          </span>
-                        </div>
-                      </td>
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className={`px-2.5 py-1 text-xs font-semibold rounded-md border ${typeClass}`}>
+                      {resource.resourceType || "Other"}
+                    </span>
+                    {getStatusBadge(resource)}
+                  </div>
 
-                      <td className="px-6 py-4 text-sm font-medium text-gray-700">
-                        {resource.resourceType || "Other"}
-                      </td>
+                  <div className="mt-auto pt-4 border-t border-gray-100 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                       <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 border border-white shadow-sm">
+                         <span className="text-[10px] font-black text-blue-600">
+                           {resource.uploader?.fullName?.charAt(0) || "U"}
+                         </span>
+                       </div>
+                       <span className="text-xs font-bold text-gray-700 truncate max-w-[120px]" title={resource.uploader?.fullName}>
+                         {resource.uploader?.fullName || "Unknown"}
+                       </span>
+                    </div>
 
-                      <td className="px-6 py-4 text-xs font-medium text-gray-500">
-                        {formatDate(resource.createdAt)}
-                      </td>
-
-                      <td className="px-6 py-4">
-                        {getStatusBadge(resource.status)}
-                      </td>
-
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleView(resource)}
-                            className="!rounded-xl text-gray-600 hover:bg-gray-50 text-xs py-1.5"
-                            disabled={actionLoading}
-                          >
-                            View
-                          </Button>
-
-                          {isAdmin && resource.status === "pending" && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                icon={CheckCircle}
-                                onClick={() => handleQuickApprove(resource)}
-                                className="!rounded-xl border-green-200 text-green-600 hover:bg-green-50 hover:border-green-300 text-xs py-1.5"
-                                disabled={actionLoading}
-                              >
-                                Accept
-                              </Button>
-
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                icon={XCircle}
-                                onClick={() => handleQuickReject(resource)}
-                                className="!rounded-xl border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 text-xs py-1.5"
-                                disabled={actionLoading}
-                              >
-                                Reject
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )})}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleView(resource)}
+                      >
+                        Show
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
         )}
       </div>
 

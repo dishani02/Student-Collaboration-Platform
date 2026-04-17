@@ -4,20 +4,17 @@ import DashboardLayout from '../../components/layout/DashboardLayout';
 import Card from '../../components/common/Card';
 import Badge from '../../components/common/Badge';
 import Loader from '../../components/common/Loader';
-import Button from '../../components/common/Button';
 import API from '../../utils/api';
-import { useAuth } from '../../context/AuthContext';
 import { Users, BookOpen, CalendarClock, ChevronRight, ClipboardList, CheckCircle2 } from 'lucide-react';
 import { formatDate } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 
-const StudentGroups = () => {
+const AdminGroups = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState('register');
-  const [openForRegistration, setOpenForRegistration] = useState([]);
-  const [published, setPublished] = useState([]);
+  const [tab, setTab] = useState('open');
+  const [openProjects, setOpenProjects] = useState([]);
+  const [publishedProjects, setPublishedProjects] = useState([]);
 
   useEffect(() => {
     fetchAssignments();
@@ -26,12 +23,12 @@ const StudentGroups = () => {
   const fetchAssignments = async () => {
     try {
       setLoading(true);
-      const res = await API.get('/groups/student/assignments');
-      setOpenForRegistration(res.data.openForRegistration || []);
-      setPublished(res.data.published || []);
+      const res = await API.get('/groups/projects');
+      const all = res.data.projects || [];
+      setOpenProjects(all.filter(p => p.status !== 'published'));
+      setPublishedProjects(all.filter(p => p.status === 'published'));
     } catch (error) {
-      console.error('Error fetching group assignments:', error);
-      toast.error('Failed to load group assignments.');
+      console.error('Error fetching group projects:', error);
     } finally {
       setLoading(false);
     }
@@ -40,7 +37,7 @@ const StudentGroups = () => {
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center min-h-screen">
+        <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
           <Loader size="lg" text="Loading group assignments..." />
         </div>
       </DashboardLayout>
@@ -57,7 +54,7 @@ const StudentGroups = () => {
       <Card
         key={project._id}
         className="hover:-translate-y-1 transition-transform cursor-pointer hover:shadow-lg border border-gray-200 flex flex-col justify-between"
-        onClick={() => navigate(`/student/groups/${project._id}`)}
+        onClick={() => navigate(`/admin/groups/${project._id}`)}
       >
         <div className="mb-4">
           <div className="flex items-start justify-between mb-3">
@@ -89,14 +86,13 @@ const StudentGroups = () => {
               {project.numberOfGroups} Groups • Size: {project.groupSize}
             </span>
             <div className="flex items-center gap-2">
-              {showPublishedBadge && (
+              {showPublishedBadge ? (
                 <Badge variant="success" size="sm">
                   Final published
                 </Badge>
-              )}
-              {!showPublishedBadge && (
+              ) : (
                 <Badge variant={deadlinePassed ? 'danger' : 'warning'} size="sm">
-                  {deadlinePassed ? 'Deadline passed' : 'Open to join'}
+                  {deadlinePassed ? 'Deadline passed' : 'Open for students'}
                 </Badge>
               )}
               <ChevronRight className="w-5 h-5 text-gray-400" />
@@ -107,67 +103,63 @@ const StudentGroups = () => {
     );
   };
 
-  const emptyRegister =
-    openForRegistration.length === 0 ? (
-      <div className="text-center py-16 bg-white border border-dashed border-gray-300 rounded-xl">
-        <ClipboardList className="w-14 h-14 text-gray-300 mx-auto mb-3" />
-        <h3 className="text-lg font-bold text-gray-900 mb-2">No open group assignments</h3>
-        <p className="text-gray-500 max-w-md mx-auto">
-          When your lecturers create a group table for your modules, it will appear here so you can register. Final
-          rosters appear under Final published groups.
-        </p>
-      </div>
-    ) : (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {openForRegistration.map((p) => renderProjectCard(p, { showPublishedBadge: false }))}
-      </div>
-    );
+  const emptyOpen = openProjects.length === 0 ? (
+    <div className="text-center py-16 bg-white border border-dashed border-gray-300 rounded-xl">
+      <ClipboardList className="w-14 h-14 text-gray-300 mx-auto mb-3" />
+      <h3 className="text-lg font-bold text-gray-900 mb-2">No active group assignments</h3>
+      <p className="text-gray-500 max-w-md mx-auto">
+        There are currently no open registration tables across your modules.
+      </p>
+    </div>
+  ) : (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {openProjects.map((p) => renderProjectCard(p, { showPublishedBadge: false }))}
+    </div>
+  );
 
-  const emptyPublished =
-    published.length === 0 ? (
-      <div className="text-center py-16 bg-white border border-dashed border-gray-300 rounded-xl">
-        <CheckCircle2 className="w-14 h-14 text-gray-300 mx-auto mb-3" />
-        <h3 className="text-lg font-bold text-gray-900 mb-2">Nothing published yet</h3>
-        <p className="text-gray-500 max-w-md mx-auto">
-          After your lecturer publishes final groups, they will be listed here for reference.
-        </p>
-      </div>
-    ) : (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {published.map((p) => renderProjectCard(p, { showPublishedBadge: true }))}
-      </div>
-    );
+  const emptyPublished = publishedProjects.length === 0 ? (
+    <div className="text-center py-16 bg-white border border-dashed border-gray-300 rounded-xl">
+      <CheckCircle2 className="w-14 h-14 text-gray-300 mx-auto mb-3" />
+      <h3 className="text-lg font-bold text-gray-900 mb-2">Nothing published yet</h3>
+      <p className="text-gray-500 max-w-md mx-auto">
+        No group assignments have been finalized and published.
+      </p>
+    </div>
+  ) : (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {publishedProjects.map((p) => renderProjectCard(p, { showPublishedBadge: true }))}
+    </div>
+  );
 
   return (
     <DashboardLayout>
-      <div className="p-8">
-        <div className="mb-6">
+      <div className="p-8 h-full flex flex-col">
+        <div className="mb-6 flex-shrink-0">
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
             <Users className="w-8 h-8 text-primary-500" />
-            Groups
+            Admin Group Monitor
           </h1>
-          <p className="text-gray-600 mt-1">
-            Join open group assignments for your modules, or view final published rosters.
-            {user?.fullName ? ` Signed in as ${user.fullName}.` : ''}
+          <p className="text-gray-600 mt-2">
+            Browse and monitor all group assignment tables and their sizes from a unified readonly view.
           </p>
         </div>
 
         <div className="flex gap-2 mb-8 border-b border-gray-200">
           <button
             type="button"
-            onClick={() => setTab('register')}
+            onClick={() => setTab('open')}
             className={`px-4 py-3 text-sm font-semibold border-b-2 -mb-px transition-colors ${
-              tab === 'register'
+              tab === 'open'
                 ? 'border-primary-600 text-primary-700'
                 : 'border-transparent text-gray-500 hover:text-gray-800'
             }`}
           >
             <span className="inline-flex items-center gap-2">
               <ClipboardList className="w-4 h-4" />
-              Join group assignments
-              {openForRegistration.length > 0 && (
+              Open group assignments
+              {openProjects.length > 0 && (
                 <span className="bg-primary-100 text-primary-800 text-xs px-2 py-0.5 rounded-full">
-                  {openForRegistration.length}
+                  {openProjects.length}
                 </span>
               )}
             </span>
@@ -184,19 +176,21 @@ const StudentGroups = () => {
             <span className="inline-flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4" />
               Final published groups
-              {published.length > 0 && (
-                <span className="bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded-full">{published.length}</span>
+              {publishedProjects.length > 0 && (
+                <span className="bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded-full">
+                  {publishedProjects.length}
+                </span>
               )}
             </span>
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto pb-8">
-          {tab === 'register' ? emptyRegister : emptyPublished}
+          {tab === 'open' ? emptyOpen : emptyPublished}
         </div>
       </div>
     </DashboardLayout>
   );
 };
 
-export default StudentGroups;
+export default AdminGroups;

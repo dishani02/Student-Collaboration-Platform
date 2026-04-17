@@ -135,7 +135,14 @@ exports.getResources = async (req, res) => {
       query.uploadedBy = uploader;
     } else if (status) {
       // Any explicit status filter (admin or other views)
-      query.status = status;
+      if (status === 'pending') {
+        query.$or = [
+          { status: 'pending' },
+          { 'pendingUpdate.status': 'pending' }
+        ];
+      } else {
+        query.status = status;
+      }
     } else {
       // Default behaviour:
       // - Admins see all resources
@@ -187,6 +194,7 @@ exports.getResources = async (req, res) => {
       totalRatings: resource.ratingCount || 0,
       downloadCount: resource.downloads || 0,
       viewCount: resource.views || 0,
+      pendingUpdate: resource.pendingUpdate,
       userRated: false
     }));
     
@@ -271,6 +279,7 @@ exports.getResourceById = async (req, res) => {
       totalRatings: resource.ratingCount || 0,
       downloadCount: resource.downloads || 0,
       viewCount: resource.views || 0,
+      pendingUpdate: resource.pendingUpdate,
       userRated: !!existingReview
     };
 
@@ -301,18 +310,63 @@ exports.updateResource = async (req, res) => {
       });
     }
     
-    if (resource.uploadedBy.toString() !== req.user.id && req.user.role !== 'admin') {
+    const isOwner = resource.uploadedBy.toString() === req.user.id;
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isOwner && !isAdmin) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to update this resource'
       });
     }
+
+    const { title, description, type, moduleCode } = req.body;
+    let fileUrl = resource.fileUrl; // Keep old initially
+    let fileName = resource.fileName;
+    let fileSize = resource.fileSize;
+    let fileType = resource.fileType;
+
+    if (req.file) {
+      fileUrl = `/uploads/resources/${req.file.filename}`;
+      fileName = req.file.originalname;
+      fileSize = req.file.size;
+      fileType = req.file.mimetype;
+    }
+
+    if (isAdmin) {
+      // Admins bypass pending queue
+      if (title) resource.title = title;
+      if (description !== undefined) resource.description = description;
+      if (type) resource.type = type;
+      if (moduleCode) resource.moduleCode = moduleCode;
+      
+      if (req.file) {
+        resource.fileUrl = fileUrl;
+        resource.fileName = fileName;
+        resource.fileSize = fileSize;
+        resource.fileType = fileType;
+        resource.metadata = { fileSize, fileType };
+      }
+
+      await resource.save();
+    } else {
+      // Owners (students/experts) -> goes to pending Update
+      resource.pendingUpdate = {
+        title: title || resource.title,
+        description: description !== undefined ? description : resource.description,
+        type: type || resource.type,
+        moduleCode: moduleCode || resource.moduleCode,
+        status: 'pending',
+        requestedAt: new Date()
+      };
+      
+      // Since file uploads aren't explicitly structured to move from temp to current on approval yet without complex storage logic
+      // Assuming for now metadata updates only unless we implement a comprehensive file staging system
+      
+      await resource.save();
+    }
     
-    resource = await Resource.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true, runValidators: true }
-    ).populate('uploadedBy', 'name email profilePicture role fullName');
+    resource = await Resource.findById(req.params.id).populate('uploadedBy', 'name email profilePicture role fullName');
     
     const formattedResource = {
       _id: resource._id,
@@ -325,6 +379,7 @@ exports.updateResource = async (req, res) => {
       fileSize: resource.fileSize,
       fileType: resource.fileType,
       status: resource.status,
+      pendingUpdate: resource.pendingUpdate,
       uploader: resource.uploadedBy,
       createdAt: resource.createdAt,
       updatedAt: resource.updatedAt,
@@ -336,6 +391,7 @@ exports.updateResource = async (req, res) => {
     
     res.json({
       success: true,
+      message: isAdmin ? 'Resource updated successfully' : 'Update submitted for admin approval',
       resource: formattedResource
     });
   } catch (error) {
@@ -537,7 +593,7 @@ exports.getMyDownloads = async (req, res) => {
   }
 };
 
-// @desc    Approve resource (Admin only)
+// @desc    Approve resource
 // @route   POST /api/resources/:id/approve
 // @access  Private (Admin)
 exports.approveResource = async (req, res) => {
@@ -548,6 +604,46 @@ exports.approveResource = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Resource not found'
+      });
+    }
+
+    // If it has a pending update
+    if (resource.pendingUpdate && resource.pendingUpdate.status === 'pending') {
+      // Archive current version to history
+      resource.versionHistory.push({
+        version: resource.currentVersion,
+        title: resource.title,
+        description: resource.description,
+        moduleCode: resource.moduleCode,
+        type: resource.type,
+        approvedAt: new Date(),
+        approvedBy: req.user.id
+      });
+      resource.currentVersion += 1;
+
+      // Apply pending updates to current
+      resource.title = resource.pendingUpdate.title;
+      resource.description = resource.pendingUpdate.description;
+      resource.moduleCode = resource.pendingUpdate.moduleCode;
+      if (resource.pendingUpdate.type) resource.type = resource.pendingUpdate.type;
+      
+      // Clear pending update
+      resource.pendingUpdate = undefined;
+      await resource.save();
+
+      await resource.populate('uploadedBy', 'name email profilePicture role fullName');
+
+      return res.json({
+        success: true,
+        message: 'Resource update approved successfully',
+        resource: {
+          _id: resource._id,
+          title: resource.title,
+          status: resource.status,
+          moduleCode: resource.moduleCode,
+          uploader: resource.uploadedBy,
+          pendingUpdate: resource.pendingUpdate
+        }
       });
     }
 
@@ -584,7 +680,7 @@ exports.approveResource = async (req, res) => {
   }
 };
 
-// @desc    Reject resource (Admin only)
+// @desc    Reject resource
 // @route   POST /api/resources/:id/reject
 // @access  Private (Admin)
 exports.rejectResource = async (req, res) => {
@@ -604,6 +700,24 @@ exports.rejectResource = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Resource not found'
+      });
+    }
+
+    // Checking if rejecting a pending update vs rejecting original upload
+    if (resource.pendingUpdate && resource.pendingUpdate.status === 'pending') {
+      resource.pendingUpdate.status = 'rejected';
+      resource.pendingUpdate.rejectionReason = reason.trim();
+      await resource.save();
+      
+      return res.json({
+        success: true,
+        message: 'Resource update rejected successfully',
+        resource: {
+          _id: resource._id,
+          title: resource.title,
+          status: resource.status,
+          pendingUpdate: resource.pendingUpdate
+        }
       });
     }
 
