@@ -17,23 +17,11 @@ const Navbar = () => {
 
 
   const getProfileRoute = () => {
-    const routes = {
-      student: '/student/profile',
-      expert: '/expert/profile',
-      lecturer: '/lecturer/profile',
-      admin: '/admin/settings',
-    };
-    return routes[user?.role] || '/student/profile';
+    return '/profile';
   };
 
   const getSettingsRoute = () => {
-    const routes = {
-      student: '/student/settings',
-      expert: '/student/settings',
-      lecturer: '/student/settings',
-      admin: '/admin/settings',
-    };
-    return routes[user?.role] || '/student/settings';
+    return '/settings';
   };
 
   if (!user) return null;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import Card from '../../components/common/Card';
@@ -35,10 +35,12 @@ import toast from 'react-hot-toast';
 const StudentResources = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('all');
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedResource, setSelectedResource] = useState(null);
@@ -59,6 +61,7 @@ const StudentResources = () => {
   const [modules, setModules] = useState([]);
   const [enrolledModules, setEnrolledModules] = useState([]);
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [ratingSubmitLoading, setRatingSubmitLoading] = useState(false);
   const [uploadErrors, setUploadErrors] = useState({});
@@ -72,6 +75,14 @@ const StudentResources = () => {
     file: null
   });
 
+  // Edit form
+  const [editForm, setEditForm] = useState({
+    title: '',
+    description: '',
+    moduleCode: '',
+    resourceType: 'Lecture Notes'
+  });
+
   const resourceTypes = ['Lecture Notes', 'Assignments', 'Past Papers', 'Textbooks', 'Other'];
 
   const getModuleName = (code) => {
@@ -80,8 +91,8 @@ const StudentResources = () => {
   };
 
   useEffect(() => {
-    if (user?._id) {
-      console.log('✅ User loaded, fetching resources for user:', user._id);
+    if (user?._id || user?.id) {
+      console.log('✅ User loaded, fetching resources for user:', user._id || user.id);
       fetchResources();
       fetchModules();
       loadEnrolledModules();
@@ -89,6 +100,13 @@ const StudentResources = () => {
       console.log('⏳ Waiting for user to load...');
     }
   }, [activeTab, filters, user]); // Change from user?._id to user
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && ['all', 'my-uploads', 'history', 'ai-suggestions'].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   // AI Suggestions when search changes
   useEffect(() => {
@@ -242,6 +260,38 @@ const StudentResources = () => {
       console.error('Upload error:', error);
     } finally {
       setUploadLoading(false);
+    }
+  };
+
+  const handleEditSubmit = async () => {
+    setUploadErrors({});
+    const errors = {};
+    if (!editForm.title.trim()) errors.title = 'Title is required';
+    if (!editForm.moduleCode.trim()) errors.moduleCode = 'Module is required';
+
+    if (Object.keys(errors).length > 0) {
+      setUploadErrors(errors);
+      return;
+    }
+
+    try {
+      setEditLoading(true);
+      await API.put(`/resources/${selectedResource._id}`, {
+        title: editForm.title,
+        description: editForm.description,
+        moduleCode: editForm.moduleCode,
+        type: editForm.resourceType
+      });
+
+      toast.success('Update submitted successfully! Pending admin approval.');
+      setShowEditModal(false);
+      setSelectedResource(null);
+      setTimeout(() => fetchResources(), 500);
+    } catch (error) {
+      console.error('Edit error:', error);
+      toast.error('Failed to submit update');
+    } finally {
+      setEditLoading(false);
     }
   };
 
@@ -401,8 +451,15 @@ const StudentResources = () => {
             <div className={`w-14 h-14 ${config.iconBg} rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 duration-300`}>
               {getFileIcon(resource.fileType, `w-7 h-7 ${config.iconColor}`)}
             </div>
-            <div className={`px-4 py-2 rounded-full text-sm font-bold ${config.bg} ${config.text} tracking-wide shadow-sm`}>
-              {resource.resourceType}
+            <div className="flex flex-col items-end gap-2">
+              <div className={`px-4 py-2 rounded-full text-sm ${config.bg} ${config.text} tracking-wide shadow-sm`}>
+                {resource.resourceType}
+              </div>
+              {resource.pendingUpdate && (
+                <div className="px-3 py-1 rounded-full text-[10px] bg-yellow-100 text-yellow-700 tracking-wide font-bold shadow-sm whitespace-nowrap flex items-center gap-1">
+                   <Clock className="w-3 h-3" /> Update Pending
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -412,7 +469,7 @@ const StudentResources = () => {
           <h3 className="text-lg font-extrabold text-[#0a3d62] leading-snug line-clamp-2 mb-1 min-h-[3.5rem]">
             {resource.title}
           </h3>
-          <p className="text-xs font-bold text-[#3c6382] uppercase tracking-widest mb-3">
+          <p className="text-xs text-[#3c6382] uppercase tracking-widest mb-3">
             {resource.moduleCode}
           </p>
           
@@ -488,21 +545,40 @@ const StudentResources = () => {
 
           {/* Contextual actions */}
           {showActions && (isOwner || (activeTab === 'history' && !resource.userRated && !isOwner)) && (
-            <div className="flex gap-2 mt-3">
+            <div className="flex gap-2 mt-3 flex-wrap">
               {isOwner && activeTab === 'my-uploads' && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  icon={Trash2}
-                  iconPosition="left"
-                  className="flex-1 text-red-500 hover:bg-red-50 font-bold text-xs py-1.5 !rounded-xl"
-                  onClick={() => {
-                    setSelectedResource(resource);
-                    setShowDeleteModal(true);
-                  }}
-                >
-                  Remove
-                </Button>
+                <>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="flex-1 text-blue-500 hover:bg-blue-50 font-bold text-xs py-1.5 !rounded-xl"
+                    onClick={() => {
+                      setSelectedResource(resource);
+                      setEditForm({
+                        title: resource.title,
+                        description: resource.description,
+                        moduleCode: resource.moduleCode,
+                        resourceType: resource.resourceType
+                      });
+                      setShowEditModal(true);
+                    }}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    icon={Trash2}
+                    iconPosition="left"
+                    className="flex-1 text-red-500 hover:bg-red-50 font-bold text-xs py-1.5 !rounded-xl"
+                    onClick={() => {
+                      setSelectedResource(resource);
+                      setShowDeleteModal(true);
+                    }}
+                  >
+                    Remove
+                  </Button>
+                </>
               )}
               {activeTab === 'history' && !resource.userRated && !isOwner && (
                 <Button
@@ -1013,6 +1089,131 @@ const StudentResources = () => {
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <p className="text-sm text-yellow-800">
               <strong>Note:</strong> Your upload will be reviewed by an admin before being published.
+            </p>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit Modal */}
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        title="Edit Resource"
+        size="lg"
+        closeOnOverlay={false}
+        showCloseButton={false}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowEditModal(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" form="edit-resource-form" loading={editLoading} icon={Upload}>
+              Submit Update
+            </Button>
+          </>
+        }
+      >
+        <form id="edit-resource-form" onSubmit={(e) => { e.preventDefault(); handleEditSubmit(); }} className="space-y-4">
+          <Input
+            label="Title"
+            name="title"
+            value={editForm.title}
+            onChange={(e) => {
+               setEditForm({ ...editForm, title: e.target.value });
+               if (uploadErrors.title) setUploadErrors(prev => ({ ...prev, title: null }));
+            }}
+            placeholder="e.g., Midterm Revision Notes 2023"
+            error={uploadErrors.title}
+          />
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Description
+            </label>
+            <textarea
+              value={editForm.description}
+              onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+              rows={3}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+              placeholder="Brief description of the resource..."
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Module <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                value={editForm.moduleCode}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setEditForm({ ...editForm, moduleCode: value.toUpperCase() });
+                  if (uploadErrors.moduleCode) setUploadErrors(prev => ({ ...prev, moduleCode: null }));
+                }}
+                onFocus={() => setShowModuleDropdown(true)}
+                className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 outline-none transition-all ${
+                  uploadErrors.moduleCode 
+                    ? 'border-red-300 focus:border-red-500 focus:ring-red-200' 
+                    : 'border-gray-300 focus:border-primary-500 focus:ring-primary-200'
+                }`}
+                placeholder="Search modules... (e.g., IT3120)"
+                autoComplete="off"
+              />
+              {uploadErrors.moduleCode && (
+                <p className="mt-1.5 text-sm text-red-600 font-medium animate-in fade-in slide-in-from-top-1">
+                  {uploadErrors.moduleCode}
+                </p>
+              )}
+
+              {showModuleDropdown && editForm.moduleCode && (
+                <>
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowModuleDropdown(false);
+                    }}
+                  />
+                  <div className="absolute z-20 w-full mt-1 bg-white rounded-lg shadow-lg border border-gray-100 max-h-48 overflow-y-auto">
+                    {modules
+                      .filter(m => m.code.toLowerCase().includes(editForm.moduleCode.toLowerCase()) || 
+                                 m.name.toLowerCase().includes(editForm.moduleCode.toLowerCase()))
+                      .map((module) => (
+                        <button
+                          key={module._id}
+                          type="button"
+                          className="w-full text-left px-4 py-2.5 hover:bg-gray-50 flex flex-col transition-colors border-b border-gray-50 last:border-0"
+                          onClick={() => {
+                            setEditForm({ ...editForm, moduleCode: module.code });
+                            setShowModuleDropdown(false);
+                            if (uploadErrors.moduleCode) setUploadErrors(prev => ({ ...prev, moduleCode: null }));
+                          }}
+                        >
+                          <span className="font-semibold text-gray-900">{module.code}</span>
+                          <span className="text-xs text-gray-500 truncate">{module.name}</span>
+                        </button>
+                      ))}
+                  </div>
+                </>
+              )}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Start typing to search for your module
+            </p>
+          </div>
+
+          <Select
+            label="Resource Type"
+            value={editForm.resourceType}
+            onChange={(e) => setEditForm({ ...editForm, resourceType: e.target.value })}
+            options={resourceTypes.map(type => ({ value: type, label: type }))}
+          />
+
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <p className="text-sm text-yellow-800">
+              <strong>Note:</strong> Update changes will be stored as pending and go live once approved by an admin.
             </p>
           </div>
         </form>

@@ -87,6 +87,34 @@ const resourceSchema = new mongoose.Schema({
   metadata: {
     fileSize: Number,
     fileType: String
+  },
+  pendingUpdate: {
+    title: String,
+    description: String,
+    moduleCode: String,
+    type: String, // Keeping track of type as well
+    status: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending'
+    },
+    requestedAt: Date,
+    rejectionReason: String
+  },
+  versionHistory: [
+    {
+      version: Number,
+      title: String,
+      description: String,
+      moduleCode: String,
+      type: String,
+      approvedAt: { type: Date, default: Date.now },
+      approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+    }
+  ],
+  currentVersion: {
+    type: Number,
+    default: 1
   }
 }, {
   timestamps: true

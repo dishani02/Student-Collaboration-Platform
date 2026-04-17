@@ -19,6 +19,23 @@ import Resources from './pages/student/Resources'
 import StudentResourceDetail from './pages/student/ResourceDetail'
 import Chat from './pages/student/Chat'
 
+// Lecturer pages
+import LecturerGroups from './pages/lecturer/Groups'
+import CreateGroupTable from './pages/lecturer/CreateGroupTable'
+import LecturerGroupTable from './pages/lecturer/GroupTable'
+import GroupTableDetail from './pages/lecturer/GroupTableDetail'
+import LecturerDashboard from './pages/lecturer/Dashboard'
+import LecturerProfile from './pages/lecturer/Profile'
+import LecturerModules from './pages/lecturer/Modules'
+import ModuleDetails from './pages/lecturer/ModuleDetails'
+import AdminGroups from './pages/admin/Groups'
+import AdminGroupTable from './pages/admin/GroupTable'
+import StudentGroupTable from './pages/student/GroupTable'
+
+// General account pages
+import Profile from './pages/Profile'
+import Modules from './pages/Modules'
+
 // Placeholder pages (to be implemented)
 import Groups from './pages/student/Groups'
 
@@ -30,13 +47,16 @@ import AdminEditSessionDetails from './pages/admin/EditSessionDetails'
 
 import StudentSessions from './pages/student/Sessions'
 import StudentSessionDetail from './pages/student/SessionDetail'
-
+import ExpertDashboard from './pages/expert/Dashboard'
 import ExpertSessionHistory from './pages/expert/SessionHistory'
 import ExpertJoinedSessions from './pages/expert/JoinedSessions'
 import ExpertConductedSessions from './pages/expert/ConductedSessions'
 
 import AdminResources from './pages/admin/Resources'
 import AdminResourceDetail from './pages/admin/ResourceDetail'
+import AdminDashboard from './pages/admin/Dashboard'
+import AdminApprovalQueue from './pages/admin/ExpertQueue'
+import AdminExpertDetail from './pages/admin/ExpertDetail'
 import ToBeImplemented from './pages/ToBeImplemented'
 
 function App() {
@@ -69,7 +89,16 @@ function App() {
         
         {/* Main App Routes (Protected) */}
         <Route element={<ProtectedRoute />}>
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard" element={
+            user?.role === 'lecturer' ? <LecturerDashboard /> :
+            user?.role === 'admin' ? <AdminDashboard /> :
+            user?.role === 'expert' ? <ExpertDashboard /> : <Dashboard />
+          } />
+          <Route path="/expert/dashboard" element={
+            <ProtectedRoute allowedRoles={['expert']}>
+              <ExpertDashboard />
+            </ProtectedRoute>
+          } />
           
           {/* Resources - Shared route but handled by role wrapper */}
           <Route 
@@ -92,10 +121,74 @@ function App() {
           />
           
           {/* Resource Detail - Role specific */}
+          <Route path="/student/resources" element={
+            <ProtectedRoute allowedRoles={['student', 'expert']}>
+              <Resources />
+            </ProtectedRoute>
+          } />
           <Route path="/student/resources/:id" element={<ProtectedRoute allowedRoles={['student', 'expert']}><StudentResourceDetail /></ProtectedRoute>} />
           <Route path="/admin/resources/:id" element={<ProtectedRoute allowedRoles={['admin']}><AdminResourceDetail /></ProtectedRoute>} />
 
-          <Route path="/groups" element={<Groups />} />
+          <Route path="/groups" element={
+            user?.role === 'lecturer' ? <LecturerGroups /> :
+            user?.role === 'admin' ? <AdminGroups /> :
+            <Groups />
+          } />
+          <Route path="/student/groups" element={
+            <ProtectedRoute allowedRoles={['student', 'expert']}>
+              <Groups />
+            </ProtectedRoute>
+          } />
+          <Route path="/groups/:id" element={
+            <ProtectedRoute allowedRoles={['student', 'expert']}>
+              <StudentGroupTable />
+            </ProtectedRoute>
+          } />
+          <Route path="/student/groups/:id" element={
+            <ProtectedRoute allowedRoles={['student', 'expert']}>
+              <StudentGroupTable />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/groups" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminGroups />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/groups/:id" element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminGroupTable />
+            </ProtectedRoute>
+          } />
+          <Route path="/lecturer/groups" element={
+            <ProtectedRoute allowedRoles={['lecturer']}>
+              <LecturerGroups />
+            </ProtectedRoute>
+          } />
+          <Route path="/lecturer/groups/create" element={
+            <ProtectedRoute allowedRoles={['lecturer']}>
+              <CreateGroupTable />
+            </ProtectedRoute>
+          } />
+          <Route path="/lecturer/groups/:id" element={
+            <ProtectedRoute allowedRoles={['lecturer']}>
+              <GroupTableDetail />
+            </ProtectedRoute>
+          } />
+          <Route path="/lecturer/profile" element={
+            <ProtectedRoute allowedRoles={['lecturer']}>
+              <LecturerProfile />
+            </ProtectedRoute>
+          } />
+          <Route path="/lecturer/modules" element={
+            <ProtectedRoute allowedRoles={['lecturer']}>
+              <LecturerModules />
+            </ProtectedRoute>
+          } />
+          <Route path="/lecturer/modules/:code" element={
+            <ProtectedRoute allowedRoles={['lecturer']}>
+              <ModuleDetails />
+            </ProtectedRoute>
+          } />
           
           {/* Admin Sessions */}
           <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
@@ -103,6 +196,7 @@ function App() {
             <Route path="/admin/sessions/create" element={<AdminCreateSession />} />
             <Route path="/admin/sessions/:id" element={<AdminSessionDetail />} />
             <Route path="/admin/sessions/:id/edit" element={<AdminEditSessionDetails />} />
+            <Route path="/admin/expert-queue/:id" element={<AdminExpertDetail />} />
           </Route>
 
           {/* Student Sessions */}
@@ -121,13 +215,18 @@ function App() {
 
           {/* Additional Features (Placeholders) */}
           <Route element={<ProtectedRoute />}>
-            <Route path="/profile" element={<ToBeImplemented />} />
+            <Route path="/profile" element={
+              user?.role === 'lecturer' ? <LecturerProfile /> : <Profile />
+            } />
             <Route path="/settings" element={<ToBeImplemented />} />
             <Route path="/chat" element={<Chat />} />
             <Route path="/feed" element={<ToBeImplemented />} />
             <Route path="/users" element={<ProtectedRoute allowedRoles={['admin']}><ToBeImplemented /></ProtectedRoute>} />
-            <Route path="/expert-queue" element={<ProtectedRoute allowedRoles={['admin']}><ToBeImplemented /></ProtectedRoute>} />
-            <Route path="/modules" element={<ProtectedRoute allowedRoles={['lecturer', 'admin']}><ToBeImplemented /></ProtectedRoute>} />
+            <Route path="/expert-queue" element={<ProtectedRoute allowedRoles={['admin']}><AdminApprovalQueue /></ProtectedRoute>} />
+            <Route path="/admin/expert-queue" element={<ProtectedRoute allowedRoles={['admin']}><AdminApprovalQueue /></ProtectedRoute>} />
+            <Route path="/modules" element={<ProtectedRoute allowedRoles={['lecturer', 'admin']}>
+              {user?.role === 'lecturer' ? <LecturerModules /> : <Modules />}
+            </ProtectedRoute>} />
           </Route>
         </Route>
 

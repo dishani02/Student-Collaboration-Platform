@@ -236,8 +236,11 @@ const AdminSessions = () => {
       <div className="p-8">
         <div className="mb-6 flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Sessions</h1>
-            <p className="mt-1 text-gray-600">
+            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+              <Calendar className="w-8 h-8 text-primary-500" />
+              Sessions
+            </h1>
+            <p className="mt-2 text-gray-600">
               Manage session announcements and requests
             </p>
           </div>
