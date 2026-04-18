@@ -2,7 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import { Toaster } from "react-hot-toast";
 import ProtectedRoute from "./components/ProtectedRoute";
-import Register from "./pages/auth/Register";
+
 // Auth pages
 import Login from "./pages/auth/Login";
 
@@ -53,7 +53,7 @@ function App() {
         {/* Auth Routes */}
         <Route path="/login" element={<Login />} />
         {/* Register: redirect to login (to be implemented) */}
-        <Route path="/register" element={<Register />} />
+        <Route path="/register" element={<Navigate to="/login" replace />} />
 
         {/* Main App Routes (Protected) */}
         <Route element={<ProtectedRoute />}>
