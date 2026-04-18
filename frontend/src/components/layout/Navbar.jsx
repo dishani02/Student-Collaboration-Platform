@@ -39,8 +39,8 @@ const Navbar = () => {
   if (!user) return null;
 
   return (
-    <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-      <div className="px-8 py-4">
+    <div className="bg-white border-b border-gray-200 sticky top-0 z-10 h-[93px] flex items-center">
+      <div className="px-8 w-full">
         <div>
           <div className="flex items-center justify-between gap-4">
             {/* Left Spacer */}

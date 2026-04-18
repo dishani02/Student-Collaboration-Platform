@@ -28,7 +28,8 @@ import {
   Sparkles,
   History,
   Send,
-  Trash2
+  Trash2,
+  X
 } from 'lucide-react';
 import { formatDate, getStatusColor } from '../../utils/helpers';
 import toast from 'react-hot-toast';
@@ -591,11 +592,16 @@ const StudentSessions = () => {
       <div className="p-8">
         {/* Header */}
         <div className="flex items-start justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Sessions</h1>
-            <p className="text-gray-600">
-              Browse available sessions, track your requests, and view your session history
-            </p>
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-primary-100 rounded-2xl flex items-center justify-center text-primary-600 shadow-sm shrink-0">
+              <Calendar className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Sessions</h1>
+              <p className="text-gray-600 mt-1">
+                Browse available sessions, track your requests, and view your session history
+              </p>
+            </div>
           </div>
           <Button icon={Send} onClick={openRequestSessionModal}>
             Request Session
@@ -604,8 +610,9 @@ const StudentSessions = () => {
 
         {/* Search and Filters */}
         <Card className="mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="md:col-span-2">
+          <div className="flex flex-col md:flex-row gap-4 items-end">
+            <div className="flex-1 w-full relative">
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Search Sessions</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
@@ -613,20 +620,41 @@ const StudentSessions = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search sessions by title, module, or description..."
-                  className="w-full pl-11 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+                  className="w-full pl-11 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none transition-all"
                 />
               </div>
             </div>
 
-            <Select
-              value={filterModule}
-              onChange={(e) => setFilterModule(e.target.value)}
-              options={[
-                { value: '', label: 'All Modules' },
-                ...modules.map(m => ({ value: m.code, label: `${m.code} - ${m.name}` }))
-              ]}
-              placeholder="Filter by module"
-            />
+            <div className="w-full md:w-64">
+              <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-1.5 ml-1">Filter by Module</label>
+              <Select
+                value={filterModule}
+                onChange={(e) => setFilterModule(e.target.value)}
+                options={[
+                  { value: '', label: 'All Modules' },
+                  ...modules.map(m => ({ value: m.code, label: `${m.code} - ${m.name}` }))
+                ]}
+                placeholder="All Modules"
+                className="!py-2.5"
+              />
+            </div>
+
+            {(searchQuery || filterModule) && (
+              <div className="w-full md:w-auto">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  icon={X} 
+                  onClick={() => {
+                    setSearchQuery('');
+                    setFilterModule('');
+                  }}
+                  className="text-gray-500 hover:text-red-500 py-2.5 font-bold"
+                >
+                  Clear Filters
+                </Button>
+              </div>
+            )}
           </div>
         </Card>
 

@@ -33,7 +33,6 @@ export const exportGroupsToExcel = (project, groups) => {
         });
       });
     } else {
-      // Add a row for an empty group if necessary, or skip
       rows.push({
         'Group': groupName,
         'Student Name': '(Empty)',
@@ -46,28 +45,21 @@ export const exportGroupsToExcel = (project, groups) => {
     }
   });
 
-  // Create worksheet
   const worksheet = XLSX.utils.json_to_sheet(rows);
-  
-  // Create workbook
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Groups');
 
-  // Adjust column widths
   const wscols = [
-    { wch: 10 }, // Group
-    { wch: 25 }, // Student Name
-    { wch: 15 }, // Student ID
-    { wch: 30 }, // Email
-    { wch: 15 }, // Phone
-    { wch: 10 }, // Role
-    { wch: 12 }  // Join Method
+    { wch: 10 },
+    { wch: 25 },
+    { wch: 15 },
+    { wch: 30 },
+    { wch: 15 },
+    { wch: 10 },
+    { wch: 12 }
   ];
   worksheet['!cols'] = wscols;
 
-  // Generate filename
   const filename = `${project.module}_${project.assignmentTitle.replace(/[^a-z0-9]/gi, '_')}_Groups.xlsx`;
-
-  // Save/Download file
   XLSX.writeFile(workbook, filename);
 };
