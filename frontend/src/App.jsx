@@ -5,6 +5,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 
 // Auth pages
 import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
 
 // Student pages (implemented)
 import Dashboard from "./pages/student/Dashboard";
@@ -52,8 +53,8 @@ function App() {
 
         {/* Auth Routes */}
         <Route path="/login" element={<Login />} />
-        {/* Register: redirect to login (to be implemented) */}
-        <Route path="/register" element={<Navigate to="/login" replace />} />
+        {/* Register: Route for the register page */}
+        <Route path="/register" element={<Register />} />
 
         {/* Main App Routes (Protected) */}
         <Route element={<ProtectedRoute />}>
