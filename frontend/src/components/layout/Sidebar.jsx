@@ -60,7 +60,7 @@ const Sidebar = () => {
       admin: [
         { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
         { to: '/users', icon: Users, label: 'Users' },
-        { to: '/expert-queue', icon: UserCheck, label: 'Approval Queue' },
+        { to: '/admin/expert-queue', icon: UserCheck, label: 'Approval Queue' },
         { to: '/admin/sessions', icon: Calendar, label: 'Sessions' },
         { to: '/resources', icon: FileText, label: 'Resources' },
         { to: '/groups', icon: Shield, label: 'Groups' },

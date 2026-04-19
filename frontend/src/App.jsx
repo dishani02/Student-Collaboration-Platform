@@ -29,6 +29,8 @@ import ExpertConductedSessions from "./pages/expert/ConductedSessions";
 
 import AdminResources from "./pages/admin/Resources";
 import AdminResourceDetail from "./pages/admin/ResourceDetail";
+import AdminApprovalQueue from "./pages/admin/ExpertQueue";
+import AdminExpertDetail from "./pages/admin/ExpertDetail";
 import ToBeImplemented from "./pages/ToBeImplemented";
 
 function App() {
@@ -161,10 +163,18 @@ function App() {
               }
             />
             <Route
-              path="/expert-queue"
+              path="/admin/expert-queue"
               element={
                 <ProtectedRoute allowedRoles={["admin"]}>
-                  <ToBeImplemented />
+                  <AdminApprovalQueue />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/expert-queue/:id"
+              element={
+                <ProtectedRoute allowedRoles={["admin"]}>
+                  <AdminExpertDetail />
                 </ProtectedRoute>
               }
             />
